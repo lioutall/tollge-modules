@@ -1,0 +1,2 @@
+filters:
+  15: io.tollge.modules.auth.localstorge.AuthHandler

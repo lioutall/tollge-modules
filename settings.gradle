@@ -1,0 +1,8 @@
+rootProject.name = 'modules'
+include 'auth:auth-localstorge'
+include 'job'
+include 'oss:oss-qiniu'
+include 'sms:sms-dayu'
+include 'wechat:wechat-gzh'
+include 'data:data-hikari'
+

@@ -1,0 +1,20 @@
+apply plugin: 'maven'
+apply plugin: 'idea'
+
+group 'io.tollge.modules'
+
+allprojects {
+    apply plugin: 'maven'
+
+    version '0.1.0-SNAPSHOT'
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    project.ext.vertx_version = "3.5.2"
+    project.ext.tollge_version = "0.1.0-SNAPSHOT"
+}
+
+dependencies {
+}
