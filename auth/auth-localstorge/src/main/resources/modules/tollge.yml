@@ -1,2 +1,4 @@
 filters:
-  15: io.tollge.modules.auth.localstorge.AuthHandler
+  15:
+    pattern: /*
+    class: io.tollge.modules.auth.localstorge.AuthHandler
