@@ -5,4 +5,5 @@ include 'oss:oss-qiniu'
 include 'sms:sms-dayu'
 include 'wechat:wechat-gzh'
 include 'data:data-hikari'
+include 'web:web-http'
 
