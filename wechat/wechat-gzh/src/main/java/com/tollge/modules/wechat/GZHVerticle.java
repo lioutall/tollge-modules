@@ -178,9 +178,8 @@ public class GZHVerticle extends BizVerticle {
                 + param + "#wechat_redirect";
     }
 
-    public static String commonRedirect(String param) {
-        return GZHRouter.WEB_URL + "/gzh/redirect?code=" + param;
+    public static String commonRedirect(String uri, String param) {
+        return GZHRouter.WEB_URL + "/gzh/redirect?uri=" + uri + "&code=" + param;
     }
-
 
 }

@@ -30,7 +30,6 @@ public class GZHRouter extends AbstractRouter {
 
 
     final static String WEB_URL = Properties.getString("wechat", "web.url");
-    private final static String WEB_REDIRECT = Properties.getString("wechat", "web.redirect");
 
     /**
      * 监听事件消息
@@ -99,10 +98,11 @@ public class GZHRouter extends AbstractRouter {
         // 微信过来的请求
         if (userAgent != null && userAgent.toLowerCase().contains("micromessenger")) {
             // 获取框码
-            String basketCode = rct.queryParams().get("code");
+            String code = rct.queryParams().get("code");
+            String uri = rct.queryParams().get("uri");
             String url = "";
             try {
-                url = GZHVerticle.redirectUrl(URLEncoder.encode(WEB_URL + WEB_REDIRECT, "UTF-8"), basketCode);
+                url = GZHVerticle.redirectUrl(URLEncoder.encode(WEB_URL + uri, "UTF-8"), code);
             } catch (UnsupportedEncodingException e) {
                 log.error("URLEncoder.encode失败", e);
             }
