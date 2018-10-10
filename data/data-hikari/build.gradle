@@ -2,10 +2,10 @@ apply plugin: 'java'
 
 sourceCompatibility = 1.8
 
-group 'io.tollge.modules.data'
+group 'com.tollge.modules.data'
 
 dependencies {
-    compileOnly 'io.tollge:tollge:' + tollge_version
+    compileOnly 'com.tollge:tollge:' + tollge_version
 
     compile 'com.tollge:sql-engine:0.1.0'
     // 连接池

@@ -1,2 +1,2 @@
 verticles:
-  http: io.tollge.modules.web.http.HttpVerticle
+  http: com.tollge.modules.web.http.HttpVerticle

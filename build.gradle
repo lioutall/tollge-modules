@@ -1,7 +1,7 @@
 apply plugin: 'maven'
 apply plugin: 'idea'
 
-group 'io.tollge.modules'
+group 'com.tollge.modules'
 
 allprojects {
     apply plugin: 'maven'
