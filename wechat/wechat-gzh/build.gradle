@@ -6,6 +6,8 @@ group 'com.tollge.modules.wechat'
 
 dependencies {
     compileOnly 'com.tollge:tollge:' + tollge_version
+    compileOnly 'com.tollge.modules.web:web-http:' + tollge_version
+    
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'io.vertx', name: 'vertx-unit', version: '3.5.0'
 }

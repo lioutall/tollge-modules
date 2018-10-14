@@ -1,7 +1,6 @@
 package com.tollge.modules.web.http;
 
 import  com.tollge.common.UFailureHandler;
-import  com.tollge.common.annotation.mark.Router;
 import  com.tollge.common.util.Properties;
 import  com.tollge.common.util.ReflectionUtil;
 import  com.tollge.common.verticle.AbstractRouter;
@@ -26,7 +25,7 @@ public class HttpVerticle extends AbstractVerticle {
         io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
 
         // 过滤器初始化
-        Map<String, Object> filters = Properties.getGroup("filters");
+        Map<String, Object> filters = Properties.getGroup("filters.http");
         filters.entrySet().stream().collect(Collectors.groupingBy(e -> e.getKey().replaceAll("\\.\\S+", ""),
                 Collectors.toMap(e -> e.getKey().replaceAll("^\\d+\\.", ""), Map.Entry::getValue)))
                 .entrySet().stream()
@@ -40,9 +39,9 @@ public class HttpVerticle extends AbstractVerticle {
         });
 
         // routers初始化
-        Set<Class<?>> set = ReflectionUtil.getClassesWithAnnotated(Router.class);
+        Set<Class<?>> set = ReflectionUtil.getClassesWithAnnotated(Http.class);
         for (Class<?> c : set) {
-            Router mark = c.getAnnotation(Router.class);
+            Http mark = c.getAnnotation(Http.class);
             try {
                 AbstractRouter abstractRouter = (AbstractRouter)c.newInstance();
                 abstractRouter.getMap().forEach((pathMark, routingContextConsumer) -> {

@@ -3,11 +3,11 @@ package com.tollge.modules.wechat;
 import com.google.common.base.Preconditions;
 import com.tollge.common.annotation.Method;
 import com.tollge.common.annotation.mark.Path;
-import com.tollge.common.annotation.mark.Router;
 import com.tollge.common.simple.MyConsumer;
 import com.tollge.common.simple.SucceedHandle;
 import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.AbstractRouter;
+import com.tollge.modules.web.http.Http;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.MultiMap;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @NoArgsConstructor
-@Router("/gzh")
+@Http("/gzh")
 @Slf4j
 public class GZHRouter extends AbstractRouter {
 
