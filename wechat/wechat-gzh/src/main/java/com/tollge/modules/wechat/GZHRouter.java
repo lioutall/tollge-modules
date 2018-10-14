@@ -1,20 +1,23 @@
 package com.tollge.modules.wechat;
 
 import com.google.common.base.Preconditions;
+import com.tollge.common.annotation.Method;
+import com.tollge.common.annotation.mark.Path;
+import com.tollge.common.annotation.mark.Router;
+import com.tollge.common.simple.MyConsumer;
+import com.tollge.common.simple.SucceedHandle;
+import com.tollge.common.util.Properties;
+import com.tollge.common.verticle.AbstractRouter;
 import io.netty.util.internal.StringUtil;
-import  com.tollge.common.annotation.Method;
-import  com.tollge.common.annotation.mark.Path;
-import  com.tollge.common.annotation.mark.Router;
-import  com.tollge.common.util.Properties;
-import  com.tollge.common.verticle.AbstractRouter;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.MultiMap;
+import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.security.NoSuchAlgorithmException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,17 +30,16 @@ public class GZHRouter extends AbstractRouter {
     private static final String EVENT_TOKEN = Properties.getString("wechat", "event.token");
     private static final String EVENT_SUBSCRIBE = "subscribe";
     private static final String EVENT_SCAN = "SCAN";
-
-
-    final static String WEB_URL = Properties.getString("wechat", "web.url");
+    private static final String TEXT = "text";
+    private static final String EVENT = "event";
 
     /**
      * 监听事件消息
      *
      * @param rct []
      */
-    @Path(value = "/event")
-    public void list(RoutingContext rct) {
+    @Path(value = "/event", contentType = "text/xml")
+    public void event(RoutingContext rct) {
         MultiMap params = rct.queryParams();
         String body = rct.getBodyAsString();
         log.info("监听到微信事件:\nbody:{}\nquery:{}", body, params);
@@ -51,7 +53,6 @@ public class GZHRouter extends AbstractRouter {
 
         String str = Stream.of(EVENT_TOKEN, timestamp, nonce).sorted().collect(Collectors.joining());
 
-
         try {
             if (!signature.equalsIgnoreCase(SHA1Util.encode(str))) {
                 throw new IllegalArgumentException();
@@ -62,30 +63,57 @@ public class GZHRouter extends AbstractRouter {
             return;
         }
 
-        // 拿eventKey
-        if (body != null && body.contains("<")) {
-            String eventKey = getValue(body, "EventKey");
-            String event = getValue(body, "Event");
-            String fromUserName = getValue(body, "FromUserName");
+        if(!StringUtil.isNullOrEmpty(echostr)) {
+            rct.response().end(echostr);
+        } else {
+            if (body != null && body.contains("<")) {
+                // 确定消息类型
+                String msgType = getValue(body, "MsgType");
+                Preconditions.checkArgument(!StringUtil.isNullOrEmpty(msgType), "参数[MsgType]错误");
+                String fromUserName = getValue(body, "FromUserName");
+                Preconditions.checkArgument(!StringUtil.isNullOrEmpty(fromUserName), "参数[FromUserName]错误");
 
-            Preconditions.checkArgument(!StringUtil.isNullOrEmpty(event), "参数错误");
-            Preconditions.checkArgument(!StringUtil.isNullOrEmpty(fromUserName), "参数错误");
+                switch (msgType) {
+                    case EVENT:
+                        String event = getValue(body, "Event");
+                        Preconditions.checkArgument(!StringUtil.isNullOrEmpty(event), "参数[Event]错误");
 
-            switch (event) {
-                case EVENT_SCAN:
-                    Preconditions.checkArgument(!StringUtil.isNullOrEmpty(eventKey), "参数错误");
-                    rct.vertx().eventBus().send("biz://gzh/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey));
-                    break;
-                case EVENT_SUBSCRIBE:
-                    Preconditions.checkArgument(!StringUtil.isNullOrEmpty(eventKey), "参数错误");
-                    rct.vertx().eventBus().send("biz://gzh/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey.replace("qrscene_", "")));
-                    break;
-                default:
-                    break;
+                        if(EVENT_SCAN.equalsIgnoreCase(event)) {
+                            String eventKey = getValue(body, "EventKey");
+                            Preconditions.checkArgument(!StringUtil.isNullOrEmpty(eventKey), "参数[EventKey]错误");
+                            rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey), res ->
+                                    SucceedHandle.handle(rct, res, responseGZH(rct, res)));
+                        } else if(EVENT_SUBSCRIBE.equalsIgnoreCase(event)) {
+                            String eventkey = getValue(body, "EventKey");
+                            if (StringUtil.isNullOrEmpty(eventkey)) {
+                                rct.response().end("");
+                            } else {
+                                rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventkey.replace("qrscene_", "")), res ->
+                                        SucceedHandle.handle(rct, res, responseGZH(rct, res)));
+                            }
+                        } else {
+                            rct.response().end("");
+                        }
+                        break;
+                    case TEXT:
+                        rct.vertx().eventBus().<String>send("biz://gzh/event/text", new JsonObject().put("openId", fromUserName).put("text", getValue(body, "Content")), res ->
+                                SucceedHandle.handle(rct, res, responseGZH(rct, res)));
+                        break;
+                    default:
+                        rct.response().end("");
+                        break;
+                }
             }
         }
 
-        rct.response().end(echostr == null ? "" : echostr);
+    }
+
+    private MyConsumer responseGZH(RoutingContext rct, AsyncResult<Message<String>> res) {
+        return ()-> {
+            String r = res.result().body();
+            log.info("gzh/event 返回:\n{}", r);
+            rct.response().end(r);
+        };
     }
 
     /**
@@ -100,12 +128,7 @@ public class GZHRouter extends AbstractRouter {
             // 获取框码
             String code = rct.queryParams().get("code");
             String uri = rct.queryParams().get("uri");
-            String url = "";
-            try {
-                url = GZHVerticle.redirectUrl(URLEncoder.encode(WEB_URL + uri, "UTF-8"), code);
-            } catch (UnsupportedEncodingException e) {
-                log.error("URLEncoder.encode失败", e);
-            }
+            String url = GZHUtil.redirectUrl(uri, code);
 
             // 跳转到微信登录
             rct.response()

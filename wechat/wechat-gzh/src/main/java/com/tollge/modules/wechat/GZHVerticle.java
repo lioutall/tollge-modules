@@ -4,12 +4,11 @@ import com.alicp.jetcache.Cache;
 import com.alicp.jetcache.RefreshPolicy;
 import com.alicp.jetcache.embedded.CaffeineCacheBuilder;
 import com.google.common.base.Preconditions;
+import com.tollge.common.annotation.mark.Biz;
+import com.tollge.common.annotation.mark.Path;
+import com.tollge.common.annotation.valid.NotNull;
+import com.tollge.common.verticle.BizVerticle;
 import io.netty.util.internal.StringUtil;
-import  com.tollge.common.annotation.mark.Biz;
-import  com.tollge.common.annotation.mark.Path;
-import  com.tollge.common.annotation.valid.NotNull;
-import  com.tollge.common.util.Properties;
-import  com.tollge.common.verticle.BizVerticle;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
@@ -21,15 +20,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
+import static com.tollge.modules.wechat.GZHUtil.APPID;
+import static com.tollge.modules.wechat.GZHUtil.SECRET;
+
 /**
  * 微信公众号
  */
 @Slf4j
 @Biz(value = "third://gzh", instances = 1)
 public class GZHVerticle extends BizVerticle {
-
-    private static final String APPID = Properties.getString("wechat", "appId");
-    private static final String SECRET = Properties.getString("wechat", "secret");
 
     private static final int EXPIRE_BEFORE = 7200;
     private static final String API_WEIXIN_QQ_COM = "api.weixin.qq.com";
@@ -148,6 +147,7 @@ public class GZHVerticle extends BizVerticle {
 
     /**
      * 长链接转短链接接口
+     *
      * @param msg []
      */
     @Path("/long2short")
@@ -170,16 +170,6 @@ public class GZHVerticle extends BizVerticle {
                                 log.error("[链接转短链] failed", res.cause());
                             }
                         });
-    }
-
-    public static String redirectUrl(String url, String param) {
-        return "https://open.weixin.qq.com/connect/oauth2/authorize?appid="
-                + APPID + "&redirect_uri=" + url + "&response_type=code&scope=snsapi_base&state="
-                + param + "#wechat_redirect";
-    }
-
-    public static String commonRedirect(String uri, String param) {
-        return GZHRouter.WEB_URL + "/gzh/redirect?uri=" + uri + "&code=" + param;
     }
 
 }
