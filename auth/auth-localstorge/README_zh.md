@@ -1,38 +1,39 @@
-# tollge-modules
+# auth-localstorge
 
 #### 项目介绍
 tollge项目的模块
-扩展tollge鉴权功能
-依赖router模块提供的filters功能.
+扩展server提供鉴权功能.依赖web模块提供的filters功能.
+作为一个filter插入web的handle序列.具体参考web的filter配置说明.
+该鉴权是本地内存存储方式鉴权.不适合分布式.
 
-#### 软件架构
-作为一个filter插入router的handle序列.具体参考router的filter配置说明.
+#### 依赖
 
-#### 安装教程
+需要JDK1.8及以上版本支持.   
+maven
+```
+<dependency>
+    <groupId>com.tollge.modules</groupId>
+    <artifactId>auth-localstorge</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+Gradle
+```
+compile 'com.tollge.modules:auth-localstorge:0.1.0-SNAPSHOT'
+```
 
-1. xxxx
-2. xxxx
-3. xxxx
+#### 用户指导
 
-#### 使用说明
-
-1. xxxx
-2. xxxx
-3. xxxx
-
-#### 参与贡献
-
-1. Fork 本项目
-2. 新建 Feat_xxx 分支
-3. 提交代码
-4. 新建 Pull Request
+1. 增加依赖
+2. 配置tollge.yml
+```
+auth:
+  impl: com.tollge.custom.AuthCustom
+```
+impl 是自定义的鉴权实现, 请继承com.tollge.common.auth.AbstractAuth.  如果不配置则全部放通.
 
 
-#### 码云特技
+3. 开发其实就是继承AbstractAuth, 补充实现方法. 这里可以根据你的系统, 定制到底是本地缓存式鉴权, 还是分布式鉴权.
+demo里有一个本地缓存式鉴权例子.
 
-1. 使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2. 码云官方博客 [blog.gitee.com](https://blog.gitee.com)
-3. 你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解码云上的优秀开源项目
-4. [GVP](https://gitee.com/gvp) 全称是码云最有价值开源项目，是码云综合评定出的优秀开源项目
-5. 码云官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6. 码云封面人物是一档用来展示码云会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+
