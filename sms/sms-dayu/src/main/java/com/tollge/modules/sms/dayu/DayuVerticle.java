@@ -28,6 +28,9 @@ public class DayuVerticle extends BizVerticle {
 
     private static final String CN_HANGZHOU = "cn-hangzhou";
 
+    private static final String ACCESS_KEY_ID = Properties.getString("sms.dayu", "accessKeyId");
+    private static final String SECRET = Properties.getString("sms.dayu", "secret");
+
     /**
      * 发送短信
      *
@@ -48,8 +51,7 @@ public class DayuVerticle extends BizVerticle {
         final String domain = "dysmsapi.aliyuncs.com";//短信API产品域名（接口地址固定，无需修改）
         //替换成你的AK
         //初始化ascClient,暂时不支持多region（请勿修改）
-        IClientProfile profile = DefaultProfile.getProfile(CN_HANGZHOU, Properties.getString("sms.dayu", "accessKeyId"),
-                Properties.getString("sms.dayu", "secret"));
+        IClientProfile profile = DefaultProfile.getProfile(CN_HANGZHOU, ACCESS_KEY_ID, SECRET);
         DefaultProfile.addEndpoint(CN_HANGZHOU, CN_HANGZHOU, product, domain);
         IAcsClient acsClient = new DefaultAcsClient(profile);
         //组装请求对象

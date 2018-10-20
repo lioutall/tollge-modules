@@ -1,0 +1,2 @@
+verticles:
+  data: com.tollge.modules.data.common.DaoVerticle

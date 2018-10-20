@@ -1,2 +1,0 @@
-verticles:
-  data: com.tollge.modules.data.hikari.DaoVerticle

@@ -25,6 +25,11 @@ public class QiniuVerticle extends BizVerticle {
     private static final String GROUP = "oss.qiniu";
     private long cacheSeconds = 300;
 
+    private Auth auth = Auth.create(Properties.getString(GROUP, "accessKey"),
+            Properties.getString(GROUP, "secretKey"));
+
+    private static final String BUCKET = Properties.getString(GROUP, "bucket");
+
     // 5分钟自动刷新, 30分钟未访问则停止
     private RefreshPolicy policy = RefreshPolicy.newPolicy(cacheSeconds, TimeUnit.SECONDS)
             .stopRefreshAfterLastAccess(30, TimeUnit.MINUTES);
@@ -34,16 +39,13 @@ public class QiniuVerticle extends BizVerticle {
             .expireAfterWrite(cacheSeconds+30, TimeUnit.SECONDS)
             .loader(key -> {
                 log.debug("begin fetch token!");
-                Auth auth = Auth.create(Properties.getString(GROUP, "accessKey"),
-                        Properties.getString(GROUP, "secretKey"));
-                long expireSeconds = cacheSeconds+30;
-                return auth.uploadToken(Properties.getString(GROUP, "bucket"), null, expireSeconds, new StringMap());
+                return auth.uploadToken(BUCKET, null, cacheSeconds+30, new StringMap());
             })
             .refreshPolicy(policy)
             .buildCache();
 
     /**
-     * 发送短信
+     * 获取token
      *
      * @param msg []
      */

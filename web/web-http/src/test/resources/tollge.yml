@@ -1,0 +1,4 @@
+application:
+  context.path:
+  http.port: 8090
+  baseScan: test.http

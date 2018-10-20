@@ -40,7 +40,7 @@ public class GZHVerticle extends BizVerticle {
             .stopRefreshAfterLastAccess(30, TimeUnit.MINUTES);
 
     // 内存缓存
-    private static Cache<String, String> cache = CaffeineCacheBuilder.createCaffeineCacheBuilder()
+    private static Cache<String, String> TOKEN = CaffeineCacheBuilder.createCaffeineCacheBuilder()
             .expireAfterWrite(EXPIRE_BEFORE, TimeUnit.SECONDS)
             .loader(key -> {
                 log.debug("begin fetch gzh token!");
@@ -64,6 +64,10 @@ public class GZHVerticle extends BizVerticle {
             })
             .refreshPolicy(policy)
             .buildCache();
+
+    public static String getToken() {
+        return TOKEN.get("");
+    }
 
     /**
      * 通过code换取网页授权网页access_token
@@ -132,7 +136,7 @@ public class GZHVerticle extends BizVerticle {
 
         WebClient client = WebClient.create(vertx);
 
-        client.post(443, API_WEIXIN_QQ_COM, "/cgi-bin/qrcode/create?access_token=" + cache.get(""))
+        client.post(443, API_WEIXIN_QQ_COM, "/cgi-bin/qrcode/create?access_token=" + TOKEN.get(""))
                 .ssl(true)
                 .sendJsonObject(body,
                         res -> {
@@ -159,7 +163,7 @@ public class GZHVerticle extends BizVerticle {
 
         WebClient client = WebClient.create(vertx);
 
-        client.post(443, API_WEIXIN_QQ_COM, "/cgi-bin/shorturl?access_token=" + cache.get(""))
+        client.post(443, API_WEIXIN_QQ_COM, "/cgi-bin/shorturl?access_token=" + TOKEN.get(""))
                 .ssl(true)
                 .sendJsonObject(body,
                         res -> {

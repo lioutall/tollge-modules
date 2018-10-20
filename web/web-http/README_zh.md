@@ -33,6 +33,8 @@ content.path 是默认url的前缀, 所有请求都应该满足/web/**, 你可�
 http.port 是http server监听的端口
 
 3. 开发,见demo
+- 提供Http注解, 相当于Controller
+- AbstractRouter中的sendBizWithUser在添加auth组件后可用
 
 #### 提供的功能
 

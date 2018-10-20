@@ -1,9 +1,9 @@
 rootProject.name = 'modules'
-include 'auth:auth-localstorge'
+include 'auth:auth-common'
 include 'job'
 include 'oss:oss-qiniu'
 include 'sms:sms-dayu'
 include 'wechat:wechat-gzh'
-include 'data:data-hikari'
+include 'data:curd-vertx'
 include 'web:web-http'
 

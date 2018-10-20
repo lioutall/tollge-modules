@@ -1,0 +1,7 @@
+application:
+  context.path:
+  http.port: 8090
+  baseScan: test.auth
+
+auth:
+  impl: test.auth.AuthCustom

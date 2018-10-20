@@ -1,0 +1,4 @@
+filters.http:
+  15:
+    pattern: /*
+    class: com.tollge.modules.auth.common.AuthHandler

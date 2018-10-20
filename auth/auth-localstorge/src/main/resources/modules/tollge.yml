@@ -1,4 +1,0 @@
-filters.http:
-  15:
-    pattern: /*
-    class: com.tollge.modules.auth.localstorge.AuthHandler
