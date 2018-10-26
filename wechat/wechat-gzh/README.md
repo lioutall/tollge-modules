@@ -38,8 +38,8 @@ wechat:
 
 3. 提供的功能
 - 提供 ${web.url}/event 来监听微信的回调事件
- - 定制 biz://gzh/event/scan 来处理扫码事件
- - 定制 biz://gzh/event/text 来处理文字事件
+ - 用户定制实现 biz://gzh/event/scan 来处理扫码事件
+ - 用户定制实现 biz://gzh/event/text 来处理文字事件
 - 提供扫码跳转逻辑, 你只需要把url设置为: ${web.url}/redirect?uri=u&code=c   
 这里的uri是指公众号验证成功后的跳转地址, code是参数
 - 提供微信部分接口实现

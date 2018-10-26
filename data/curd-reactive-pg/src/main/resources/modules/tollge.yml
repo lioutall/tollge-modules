@@ -1,0 +1,2 @@
+verticles:
+  data: com.tollge.modules.curd.reactivepg.DaoVerticle

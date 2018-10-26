@@ -1,8 +1,8 @@
-# auth-localstorge
+# auth-common
 
 #### 项目介绍
 tollge项目的模块
-扩展server提供鉴权功能.依赖web模块提供的filters功能.
+扩展server提供鉴权功能.依赖web模块提供的[filters功能]().
 作为一个filter插入web的handle序列.具体参考web的filter配置说明.
 
 #### 依赖
@@ -12,13 +12,13 @@ maven
 ```
 <dependency>
     <groupId>com.tollge.modules</groupId>
-    <artifactId>auth-localstorge</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <artifactId>auth-common</artifactId>
+    <version>0.1.0</version>
 </dependency>
 ```
 Gradle
 ```
-compile 'com.tollge.modules:auth-localstorge:0.1.0-SNAPSHOT'
+compile 'com.tollge.modules:auth-common:0.1.0'
 ```
 
 #### 用户指导

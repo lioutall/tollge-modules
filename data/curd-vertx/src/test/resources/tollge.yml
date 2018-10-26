@@ -1,0 +1,9 @@
+application:
+  baseScan: test.curd
+jdbc:
+  maximumPoolSize: 20
+  minimumIdle: 2
+  provider_class: io.vertx.ext.jdbc.spi.impl.HikariCPDataSourceProvider
+  jdbcUrl: jdbc:postgresql://ip:port/dbname
+  password: pass
+  username: user

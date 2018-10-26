@@ -5,5 +5,6 @@ include 'oss:oss-qiniu'
 include 'sms:sms-dayu'
 include 'wechat:wechat-gzh'
 include 'data:curd-vertx'
+include 'data:curd-reactive-pg'
 include 'web:web-http'
 

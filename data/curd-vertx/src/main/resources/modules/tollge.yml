@@ -1,2 +1,2 @@
 verticles:
-  data: com.tollge.modules.data.common.DaoVerticle
+  data: com.tollge.modules.curd.vertx.DaoVerticle

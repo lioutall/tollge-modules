@@ -86,20 +86,24 @@ public class AuthHandlerImpl implements AuthHandler {
                     subject.refreshTime(LocalDateTime.now());
                     ctx.next();
                 } else {
+                    // 用户是否登录成功
                     if (subject.isAuthenticated()) {
                         subject.isAuthorised(permission, res -> {
+                            // 用户是否具备访问permission权限
                             if (res.succeeded() && res.result()) {
                                 subject.refreshTime(LocalDateTime.now());
                                 ctx.next();
                             } else {
-                                ctx.response().end(ResultFormat.format(StatusCodeMsg.C314, new JsonObject()));
+                                authCustom.failAuthenticate(ctx);
                             }
                         });
                     } else {
-                        ctx.response().end(ResultFormat.format(StatusCodeMsg.C300, new JsonObject()));
+                        authCustom.failLogin(ctx);
                     }
                 }
             } else {
+                // 获取或创建不成功
+                log.error("get or create subject failed", f.cause());
                 ctx.response().end(ResultFormat.format(StatusCodeMsg.C316, f.cause()));
             }
         });

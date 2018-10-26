@@ -1,4 +1,4 @@
-package com.tollge.modules.data.common;
+package com.tollge.modules.curd.reactivepg;
 
 import com.google.common.base.CaseFormat;
 import com.tollge.sql.SqlEngineException;
@@ -8,32 +8,33 @@ import com.tollge.common.SqlAndParams;
 import com.tollge.common.util.Const;
 import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.AbstractDao;
+import io.reactiverse.pgclient.*;
+import io.reactiverse.pgclient.data.Json;
+import io.reactiverse.pgclient.impl.ArrayTuple;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.jdbc.JDBCClient;
-import io.vertx.ext.sql.ResultSet;
-import io.vertx.ext.sql.SQLConnection;
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 标准数据库调用Verticle
+ * reactive-pg-client数据库调用Verticle
  *
  * @author toyer
  */
 @Slf4j
 public class DaoVerticle extends AbstractDao {
-    private JDBCClient jdbcClient;
+    private PgPool jdbcClient;
 
     @Override
     protected void init() {
-        jdbcClient = JDBCClient.createShared(vertx, getDbConfig());
+        jdbcClient = PgClient.pool(vertx, new PgPoolOptions(getDbConfig()));
     }
 
     @Override
@@ -42,15 +43,17 @@ public class DaoVerticle extends AbstractDao {
 
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
+                PgConnection conn = connection.result();
                 SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
                 if (sqlSession == null) {
                     return;
                 }
-                conn.queryWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
+                conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), res -> {
                     if (res.succeeded()) {
                         try {
-                            Long result = res.result().getResults().get(0).getLong(0);
+                            PgIterator ite = res.result().iterator();
+                            Row r = ite.next();
+                            Long result = r.getLong(0);
                             msg.reply(result);
                         } catch (Exception e) {
                             msg.fail(501, e.getMessage());
@@ -70,7 +73,19 @@ public class DaoVerticle extends AbstractDao {
 
     private SqlSession getSqlSession(Message<?> msg, SqlAndParams sqlAndParams) {
         try {
-            return getRealSql(sqlAndParams.getSqlKey(), sqlAndParams.getParams());
+            SqlSession r = getRealSql(sqlAndParams.getSqlKey(), sqlAndParams.getParams());
+            StringBuilder sb = new StringBuilder();
+            int j = 1;
+            for(char b : r.getSql().toCharArray()) {
+                if(b == '?') {
+                    sb.append('$');
+                    sb.append(Integer.toString(j++));
+                } else {
+                    sb.append(b);
+                }
+            }
+            r.setSql(sb.toString());
+            return r;
         } catch (Exception e) {
             log.error(GET_REAL_SQL_FAILED, sqlAndParams.getSqlKey(), e);
             msg.fail(501, e.toString());
@@ -89,28 +104,29 @@ public class DaoVerticle extends AbstractDao {
 
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
+                PgConnection conn = connection.result();
                 SqlSession sqlSessionCount = getSqlSession(msg, sqlAndParams);
                 if (sqlSessionCount == null) {
                     return;
                 }
-                conn.queryWithParams("select count(1) from (".concat(sqlSessionCount.getSql()).concat(") tab"), new JsonArray(sqlSessionCount.getParams()), getCount -> {
+                conn.preparedQuery("select count(1) from (".concat(sqlSessionCount.getSql()).concat(") tab"), jsonArray2Tuple(sqlSessionCount.getParams()), getCount -> {
                     if (getCount.succeeded()) {
                         // 返回结果
                         JsonObject result = new JsonObject();
                         // 获得数据总行数
-                        Long count = getCount.result().getResults().get(0).getLong(0);
+                        PgIterator ite = getCount.result().iterator();
+                        Row r = ite.next();
+                        Long count = r.getLong(0);
                         // 执行获得数据结果
                         SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
                         if (sqlSession == null) {
                             return;
                         }
-                        conn.queryWithParams(sqlSession.getSql().concat(" limit " + sqlAndParams.getLimit() + " offset " + sqlAndParams.getOffset()), new JsonArray(sqlSession.getParams()), getData -> {
+                        conn.preparedQuery(sqlSession.getSql().concat(" limit " + sqlAndParams.getLimit() + " offset " + sqlAndParams.getOffset()), jsonArray2Tuple(sqlSession.getParams()), getData -> {
                             if (getData.succeeded()) {
-                                ResultSet rs = under2Camel(getData);
-                                List<JsonObject> rows = rs.getRows();
+                                JsonArray rows = under2Camel(getData);
                                 result.put(Const.TOLLGE_PAGE_COUNT, count);
-                                result.put(Const.TOLLGE_PAGE_DATA, new JsonArray(rows));
+                                result.put(Const.TOLLGE_PAGE_DATA, rows);
                                 msg.reply(result);
                                 conn.close();
                             } else {
@@ -134,16 +150,14 @@ public class DaoVerticle extends AbstractDao {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
+                PgConnection conn = connection.result();
                 SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
                 if (sqlSession == null) {
                     return;
                 }
-                conn.queryWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
+                conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), res -> {
                     if (res.succeeded()) {
-                        ResultSet rs = under2Camel(res);
-                        List<JsonObject> rows = rs.getRows();
-                        msg.reply(new JsonArray(rows));
+                        msg.reply(under2Camel(res));
                         conn.close();
                     } else {
                         msg.fail(501, res.cause().toString());
@@ -161,18 +175,17 @@ public class DaoVerticle extends AbstractDao {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
+                PgConnection conn = connection.result();
                 SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
                 if (sqlSession == null) {
                     return;
                 }
-                conn.queryWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
+                conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), res -> {
                     if (res.succeeded()) {
                         JsonObject result = null;
-                        ResultSet rs = under2Camel(res);
-                        List<JsonObject> rows = rs.getRows();
+                        JsonArray rows = under2Camel(res);
                         if (!rows.isEmpty()) {
-                            result = rows.get(0);
+                            result = rows.getJsonObject(0);
                         }
                         msg.reply(result);
                         conn.close();
@@ -192,17 +205,20 @@ public class DaoVerticle extends AbstractDao {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
+                PgConnection conn = connection.result();
                 SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
                 if (sqlSession == null) {
                     return;
                 }
-                conn.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
+                conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), res -> {
                     if (res.succeeded()) {
-                        if (res.result().getKeys() != null && !res.result().getKeys().isEmpty()) {
-                            msg.reply(res.result().getKeys());
+                        PgIterator ite = res.result().iterator();
+                        Row r = ite.next();
+                        Object result = r.getValue(0);
+                        if (result instanceof Json) {
+                            msg.reply(((Json) result).value());
                         } else {
-                            msg.reply(res.result().getUpdated());
+                            msg.reply(result);
                         }
                         conn.close();
                     } else {
@@ -226,7 +242,7 @@ public class DaoVerticle extends AbstractDao {
 
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
+                PgConnection conn = connection.result();
 
                 List<SqlSession> list = null;
                 try {
@@ -237,7 +253,7 @@ public class DaoVerticle extends AbstractDao {
                     msg.fail(501, e.toString());
                     return;
                 }
-                conn.batchWithParams(list.get(0).getSql(), list.stream().map(se -> new JsonArray(se.getParams())).collect(Collectors.toList()), res -> {
+                conn.preparedBatch(list.get(0).getSql(), list.stream().map(se -> jsonArray2Tuple(se.getParams())).collect(Collectors.toList()), res -> {
                     if (res.succeeded()) {
                         int result = res.result().size();
                         msg.reply(result);
@@ -259,82 +275,42 @@ public class DaoVerticle extends AbstractDao {
         final List<SqlAndParams> sqlAndParamsList = fetchSqlAndParamsList(msg);
 
         // 获取连接
-        Future<SQLConnection> connF = Future.future(conn -> jdbcClient.getConnection(conn));
+        jdbcClient.getConnection(res -> {
+            if (res.succeeded()) {
 
-        // 设置成手动提交
-        connF = connF.compose(f -> {
-            Future<SQLConnection> reConn = Future.future();
-            f.setAutoCommit(false, r -> {
-                if (r.succeeded()) {
-                    reConn.complete(f);
-                } else {
-                    Future.failedFuture(r.cause());
-                }
-            });
-            return reConn;
-        });
+                // Transaction must use a connection
+                PgConnection conn = res.result();
 
-        // 逐步操作
-        for (SqlAndParams sqlParam : sqlAndParamsList) {
-            connF = connF.compose(f -> {
-                Future<SQLConnection> reConn = Future.future();
-                try {
+                // Begin the transaction
+                PgTransaction tx = conn.begin();
+
+                for (SqlAndParams sqlParam : sqlAndParamsList) {
                     SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
-                    f.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
-                        if (res.succeeded()) {
-                            reConn.complete(f);
-                        } else {
-                            rollback(msg, f);
-                            reConn.fail(res.cause());
+                    conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), ar -> {
+                        // Works fine of course
+                        if (!ar.succeeded()) {
+                            tx.rollback();
+                            conn.close();
                         }
                     });
-                } catch (Exception e) {
-                    rollback(msg, f);
-                    reConn.fail(e);
                 }
-                return reConn;
-            });
-        }
 
-        // 提交或回滚
-        connF.setHandler(conn -> {
-            if (conn.succeeded()) {
-                conn.result().commit(res -> {
-                    if (res.succeeded()) {
-                        setAutoCommitAndClose(conn.result());
+                // Commit the transaction
+                tx.commit(ar -> {
+                    if (ar.succeeded()) {
                         msg.reply(sqlAndParamsList.size());
                     } else {
-                        log.error("unknown error", conn.cause());
-                        rollback(msg, conn.result());
-                        msg.fail(501, res.cause().toString());
+                        log.error("unknown error", ar.cause().getMessage());
+                        tx.rollback();
+                        msg.fail(501, ar.cause().getMessage());
                     }
+
+                    // Return the connection to the pool
+                    conn.close();
                 });
-            } else {
-                log.error("error:", conn.cause());
-                msg.fail(501, conn.cause().toString());
             }
         });
 
-    }
-
-    private void rollback(Message<JsonArray> msg, SQLConnection conn) {
-        log.info("error occur and rollback");
-        conn.rollback(rollRes -> {
-            if (rollRes.succeeded()) {
-                setAutoCommitAndClose(conn);
-            } else {
-                msg.fail(501, rollRes.cause().toString());
-            }
-        });
-    }
-
-    private void setAutoCommitAndClose(SQLConnection conn) {
-        conn.setAutoCommit(true, auto -> {
-            if (!auto.succeeded()) {
-                log.error("can not set autocommit", auto.cause());
-            }
-        });
-        conn.close();
     }
 
     @Override
@@ -343,11 +319,19 @@ public class DaoVerticle extends AbstractDao {
         return new JsonObject(configs);
     }
 
-    protected ResultSet under2Camel(AsyncResult<ResultSet> getData) {
-        ResultSet rs = getData.result();
-        rs.setColumnNames(rs.getColumnNames().stream().map(a ->
-                CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, a)).collect(Collectors.toList()));
-        return rs;
+    protected JsonArray under2Camel(AsyncResult<PgRowSet> getData) {
+        JsonArray array = new JsonArray();
+        PgRowSet rs = getData.result();
+        List<String> columns = rs.columnsNames();
+
+        for(Row r : rs) {
+            JsonObject j = new JsonObject();
+            for (String cn : columns) {
+                j.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, cn), r.getValue(cn));
+            }
+            array.add(j);
+        }
+        return array;
     }
 
     protected List<SqlAndParams> fetchSqlAndParamsList(Message<JsonArray> msg) {
@@ -379,4 +363,13 @@ public class DaoVerticle extends AbstractDao {
             throw e;
         }
     }
+
+    private Tuple jsonArray2Tuple(List<Object> list) {
+        Tuple t = new ArrayTuple(list.size());
+        for (Object elt: list) {
+            t.addValue(elt);
+        }
+        return t;
+    }
+
 }
