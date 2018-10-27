@@ -8,3 +8,4 @@ jdbc:
   password: pa*
   maxSize: 20
   maxWaitQueueSize: 2
+  cachePreparedStatements: false
