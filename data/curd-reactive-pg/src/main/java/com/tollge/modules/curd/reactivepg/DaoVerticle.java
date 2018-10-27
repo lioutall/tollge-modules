@@ -1,24 +1,22 @@
 package com.tollge.modules.curd.reactivepg;
 
 import com.google.common.base.CaseFormat;
-import com.tollge.sql.SqlEngineException;
-import com.tollge.sql.SqlSession;
-import com.tollge.sql.SqlTemplate;
 import com.tollge.common.SqlAndParams;
 import com.tollge.common.util.Const;
 import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.AbstractDao;
+import com.tollge.sql.SqlEngineException;
+import com.tollge.sql.SqlSession;
+import com.tollge.sql.SqlTemplate;
 import io.reactiverse.pgclient.*;
 import io.reactiverse.pgclient.data.Json;
 import io.reactiverse.pgclient.impl.ArrayTuple;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
