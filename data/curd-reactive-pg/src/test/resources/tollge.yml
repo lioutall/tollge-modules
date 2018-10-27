@@ -1,10 +1,10 @@
 application:
   baseScan: test.curd
 jdbc:
-  host: tollge.cn
-  port: 10300
-  database: assemblagedb
-  user: dbusertollge
-  password: dsd*fsLvc12&
+  host: host
+  port: 5432
+  database: dbname
+  user: dbuser
+  password: pa*
   maxSize: 20
   maxWaitQueueSize: 2
