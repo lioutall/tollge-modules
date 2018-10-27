@@ -6,7 +6,6 @@ import com.tollge.common.UFailureHandler;
 import com.tollge.common.annotation.Method;
 import com.tollge.common.annotation.mark.Path;
 import com.tollge.common.auth.Subject;
-import com.tollge.common.simple.SucceedHandle;
 import com.tollge.modules.web.http.Http;
 import com.tollge.common.verticle.AbstractRouter;
 import io.vertx.core.eventbus.Message;

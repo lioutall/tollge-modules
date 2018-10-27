@@ -3,13 +3,11 @@ package com.tollge.modules.wechat;
 import com.google.common.base.Preconditions;
 import com.tollge.common.annotation.Method;
 import com.tollge.common.annotation.mark.Path;
-import com.tollge.common.simple.MyConsumer;
-import com.tollge.common.simple.SucceedHandle;
 import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.AbstractRouter;
 import com.tollge.modules.web.http.Http;
 import io.netty.util.internal.StringUtil;
-import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
@@ -21,6 +19,8 @@ import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.tollge.common.simple.Handle.assertSuccess;
 
 @NoArgsConstructor
 @Http("/gzh")
@@ -81,23 +81,23 @@ public class GZHRouter extends AbstractRouter {
                         if(EVENT_SCAN.equalsIgnoreCase(event)) {
                             String eventKey = getValue(body, "EventKey");
                             Preconditions.checkArgument(!StringUtil.isNullOrEmpty(eventKey), "参数[EventKey]错误");
-                            rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey), res ->
-                                    SucceedHandle.handle(rct, res, responseGZH(rct, res)));
+                            rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey),
+                                    assertSuccess(rct, responseGZH(rct)));
                         } else if(EVENT_SUBSCRIBE.equalsIgnoreCase(event)) {
                             String eventkey = getValue(body, "EventKey");
                             if (StringUtil.isNullOrEmpty(eventkey)) {
                                 rct.response().end("");
                             } else {
-                                rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventkey.replace("qrscene_", "")), res ->
-                                        SucceedHandle.handle(rct, res, responseGZH(rct, res)));
+                                rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventkey.replace("qrscene_", "")),
+                                        assertSuccess(rct, responseGZH(rct)));
                             }
                         } else {
                             rct.response().end("");
                         }
                         break;
                     case TEXT:
-                        rct.vertx().eventBus().<String>send("biz://gzh/event/text", new JsonObject().put("openId", fromUserName).put("text", getValue(body, "Content")), res ->
-                                SucceedHandle.handle(rct, res, responseGZH(rct, res)));
+                        rct.vertx().eventBus().<String>send("biz://gzh/event/text", new JsonObject().put("openId", fromUserName).put("text", getValue(body, "Content")),
+                                assertSuccess(rct, responseGZH(rct)));
                         break;
                     default:
                         rct.response().end("");
@@ -108,9 +108,9 @@ public class GZHRouter extends AbstractRouter {
 
     }
 
-    private MyConsumer responseGZH(RoutingContext rct, AsyncResult<Message<String>> res) {
-        return ()-> {
-            String r = res.result().body();
+    private Handler<Message<String>> responseGZH(RoutingContext rct) {
+        return res -> {
+            String r = res.body();
             log.info("gzh/event 返回:\n{}", r);
             rct.response().end(r);
         };
