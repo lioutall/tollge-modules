@@ -13,13 +13,13 @@ maven
 ```
 <dependency>
     <groupId>com.tollge.modules</groupId>
-    <artifactId>auth-vertx</artifactId>
+    <artifactId>curd-vertx</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 Gradle
 ```
-compile 'com.tollge.modules:auth-vertx:0.1.0'
+compile 'com.tollge.modules:curd-vertx:0.1.0'
 ```
 
 #### 用户指导

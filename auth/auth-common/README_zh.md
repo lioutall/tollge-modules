@@ -1,8 +1,8 @@
 # auth-common
 
 #### 项目介绍
-tollge项目的模块
-扩展server提供鉴权功能.依赖web模块提供的[filters功能]().
+tollge项目的模块   
+扩展server提供鉴权功能.依赖web模块提供的[filters功能](https://github.com/lioutall/tollge-modules/tree/master/web/web-http).   
 作为一个filter插入web的handle序列.具体参考web的filter配置说明.
 
 #### 依赖

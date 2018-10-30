@@ -57,5 +57,5 @@ filters.http:
 
 |顺序号|module|用途|
 |-|-|-|
-|15|auth-localstorge|权限校验|
+|15|auth-common|权限校验|
 
