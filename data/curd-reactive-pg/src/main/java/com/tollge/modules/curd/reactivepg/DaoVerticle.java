@@ -2,6 +2,7 @@ package com.tollge.modules.curd.reactivepg;
 
 import com.google.common.base.CaseFormat;
 import com.tollge.common.SqlAndParams;
+import com.tollge.common.TollgeException;
 import com.tollge.common.util.Const;
 import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.AbstractDao;
@@ -12,6 +13,9 @@ import io.reactiverse.pgclient.*;
 import io.reactiverse.pgclient.data.Json;
 import io.reactiverse.pgclient.impl.ArrayTuple;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.CompositeFuture;
+import io.vertx.core.Future;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -19,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -54,16 +59,19 @@ public class DaoVerticle extends AbstractDao {
                             Long result = r.getLong(0);
                             msg.reply(result);
                         } catch (Exception e) {
+                            log.error("count.buildResult failed", e);
                             msg.fail(501, e.getMessage());
                         } finally {
                             conn.close();
                         }
                     } else {
+                        log.error("count.query failed", res.cause());
                         msg.fail(501, res.cause().toString());
                         conn.close();
                     }
                 });
             } else {
+                log.error("count.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -128,16 +136,19 @@ public class DaoVerticle extends AbstractDao {
                                 msg.reply(result);
                                 conn.close();
                             } else {
+                                log.error("page.getData failed", getData.cause());
                                 msg.fail(501, getData.cause().toString());
                                 conn.close();
                             }
                         });
                     } else {
+                        log.error("page.getCount failed", getCount.cause());
                         msg.fail(501, getCount.cause().toString());
                         conn.close();
                     }
                 });
             } else {
+                log.error("page.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -158,11 +169,13 @@ public class DaoVerticle extends AbstractDao {
                         msg.reply(under2Camel(res));
                         conn.close();
                     } else {
+                        log.error("list.query failed", res.cause());
                         msg.fail(501, res.cause().toString());
                         conn.close();
                     }
                 });
             } else {
+                log.error("list.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -188,11 +201,13 @@ public class DaoVerticle extends AbstractDao {
                         msg.reply(result);
                         conn.close();
                     } else {
+                        log.error("one.query failed", res.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
                 });
             } else {
+                log.error("one.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -220,11 +235,13 @@ public class DaoVerticle extends AbstractDao {
                         }
                         conn.close();
                     } else {
+                        log.error("operate.query failed", res.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
                 });
             } else {
+                log.error("operate.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -251,17 +268,20 @@ public class DaoVerticle extends AbstractDao {
                     msg.fail(501, e.toString());
                     return;
                 }
-                conn.preparedBatch(list.get(0).getSql(), list.stream().map(se -> jsonArray2Tuple(se.getParams())).collect(Collectors.toList()), res -> {
+                String sqlId = list.get(0).getSql();
+                conn.preparedBatch(sqlId, list.stream().map(se -> jsonArray2Tuple(se.getParams())).collect(Collectors.toList()), res -> {
                     if (res.succeeded()) {
                         int result = res.result().size();
                         msg.reply(result);
                         conn.close();
                     } else {
+                        log.error("batch.batch[{}] failed", sqlId, connection.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
                 });
             } else {
+                log.error("batch.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -272,40 +292,64 @@ public class DaoVerticle extends AbstractDao {
         // 获取操作列表
         final List<SqlAndParams> sqlAndParamsList = fetchSqlAndParamsList(msg);
 
+        // 是否忽略执行结果
+        String ignore = msg.headers().get(Const.IGNORE);
+
         // 获取连接
-        jdbcClient.getConnection(res -> {
-            if (res.succeeded()) {
+        jdbcClient.getConnection(connection -> {
+            if (connection.succeeded()) {
 
                 // Transaction must use a connection
-                PgConnection conn = res.result();
+                PgConnection conn = connection.result();
 
                 // Begin the transaction
                 PgTransaction tx = conn.begin();
 
+                Future<PgRowSet> updates = Future.future(Future::complete);
+
                 for (SqlAndParams sqlParam : sqlAndParamsList) {
-                    SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
-                    conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), ar -> {
-                        // Works fine of course
-                        if (!ar.succeeded()) {
-                            tx.rollback();
-                            conn.close();
+                    final SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
+                    updates = updates.compose(r -> Future.<PgRowSet>future(
+                            ar -> conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), ar)
+                    ).setHandler(a -> {
+                        if(a.succeeded()) {
+                            if ("0".equals(ignore)){
+                                PgIterator ite = a.result().iterator();
+                                Row row = ite.next();
+                                Object result = row.getValue(0);
+                                if(result instanceof Integer && ((Integer) result) == 0) {
+                                    throw new TollgeException("no update: " + sqlParam.getSqlKey());
+                                }
+                            }
+                        } else {
+                            throw new TollgeException("transaction update error: " + sqlParam.getSqlKey());
                         }
-                    });
+                    }));
                 }
 
-                // Commit the transaction
-                tx.commit(ar -> {
-                    if (ar.succeeded()) {
-                        msg.reply(sqlAndParamsList.size());
-                    } else {
-                        log.error("unknown error", ar.cause().getMessage());
-                        tx.rollback();
-                        msg.fail(501, ar.cause().getMessage());
-                    }
+                updates.setHandler(res -> {
+                    if(res.succeeded()) {
+                        // Commit the transaction
+                        tx.commit(ar -> {
+                            if (ar.succeeded()) {
+                                msg.reply(sqlAndParamsList.size());
+                            } else {
+                                tx.rollback();
+                                msg.fail(501, ar.cause().getMessage());
+                            }
 
-                    // Return the connection to the pool
-                    conn.close();
+                            // Return the connection to the pool
+                            conn.close();
+                        });
+                    } else {
+                        tx.rollback();
+                        conn.close();
+                    }
                 });
+
+            } else {
+                log.error("transaction.getConnection failed", connection.cause());
+                msg.fail(501, connection.cause().toString());
             }
         });
 

@@ -1,6 +1,8 @@
 package com.tollge.modules.curd.vertx;
 
 import com.google.common.base.CaseFormat;
+import com.sun.rowset.internal.Row;
+import com.tollge.common.TollgeException;
 import com.tollge.sql.SqlEngineException;
 import com.tollge.sql.SqlSession;
 import com.tollge.sql.SqlTemplate;
@@ -16,6 +18,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.sql.ResultSet;
 import io.vertx.ext.sql.SQLConnection;
+import io.vertx.ext.sql.UpdateResult;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -53,16 +56,19 @@ public class DaoVerticle extends AbstractDao {
                             Long result = res.result().getResults().get(0).getLong(0);
                             msg.reply(result);
                         } catch (Exception e) {
+                            log.error("count.buildResult failed", e);
                             msg.fail(501, e.getMessage());
                         } finally {
                             conn.close();
                         }
                     } else {
+                        log.error("count.query failed", res.cause());
                         msg.fail(501, res.cause().toString());
                         conn.close();
                     }
                 });
             } else {
+                log.error("count.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -114,16 +120,19 @@ public class DaoVerticle extends AbstractDao {
                                 msg.reply(result);
                                 conn.close();
                             } else {
+                                log.error("count.getData failed", getData.cause());
                                 msg.fail(501, getData.cause().toString());
                                 conn.close();
                             }
                         });
                     } else {
+                        log.error("count.getCount failed", getCount.cause());
                         msg.fail(501, getCount.cause().toString());
                         conn.close();
                     }
                 });
             } else {
+                log.error("page.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -146,11 +155,13 @@ public class DaoVerticle extends AbstractDao {
                         msg.reply(new JsonArray(rows));
                         conn.close();
                     } else {
+                        log.error("list.query failed", res.cause());
                         msg.fail(501, res.cause().toString());
                         conn.close();
                     }
                 });
             } else {
+                log.error("list.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -177,11 +188,13 @@ public class DaoVerticle extends AbstractDao {
                         msg.reply(result);
                         conn.close();
                     } else {
+                        log.error("one.query failed", res.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
                 });
             } else {
+                log.error("one.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -206,11 +219,13 @@ public class DaoVerticle extends AbstractDao {
                         }
                         conn.close();
                     } else {
+                        log.error("operate.query failed", res.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
                 });
             } else {
+                log.error("operate.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -237,17 +252,20 @@ public class DaoVerticle extends AbstractDao {
                     msg.fail(501, e.toString());
                     return;
                 }
-                conn.batchWithParams(list.get(0).getSql(), list.stream().map(se -> new JsonArray(se.getParams())).collect(Collectors.toList()), res -> {
+                String sqlId = list.get(0).getSql();
+                conn.batchWithParams(sqlId, list.stream().map(se -> new JsonArray(se.getParams())).collect(Collectors.toList()), res -> {
                     if (res.succeeded()) {
                         int result = res.result().size();
                         msg.reply(result);
                         conn.close();
                     } else {
+                        log.error("batch.batch[{}] failed", sqlId, connection.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
                 });
             } else {
+                log.error("batch.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
             }
         });
@@ -258,71 +276,79 @@ public class DaoVerticle extends AbstractDao {
         // 获取操作列表
         final List<SqlAndParams> sqlAndParamsList = fetchSqlAndParamsList(msg);
 
-        // 获取连接
-        Future<SQLConnection> connF = Future.future(conn -> jdbcClient.getConnection(conn));
+        jdbcClient.getConnection(connR -> {
+            SQLConnection conn = connR.result();
+            if(connR.succeeded()) {
+                // 是否忽略执行结果
+                String ignore = msg.headers().get(Const.IGNORE);
 
-        // 设置成手动提交
-        connF = connF.compose(f -> {
-            Future<SQLConnection> reConn = Future.future();
-            f.setAutoCommit(false, r -> {
-                if (r.succeeded()) {
-                    reConn.complete(f);
-                } else {
-                    Future.failedFuture(r.cause());
-                }
-            });
-            return reConn;
-        });
+                // 设置成手动提交
+                conn.setAutoCommit(false, r -> {
+                    if(r.succeeded()) {
+                        Future<UpdateResult> deals = Future.future(Future::complete);
 
-        // 逐步操作
-        for (SqlAndParams sqlParam : sqlAndParamsList) {
-            connF = connF.compose(f -> {
-                Future<SQLConnection> reConn = Future.future();
-                try {
-                    SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
-                    f.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
-                        if (res.succeeded()) {
-                            reConn.complete(f);
-                        } else {
-                            rollback(msg, f);
-                            reConn.fail(res.cause());
+                        for (SqlAndParams sqlParam : sqlAndParamsList) {
+                            SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
+
+                            deals = deals.compose(deal -> Future.<UpdateResult>future(f->{
+                                conn.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), f);
+                            }).setHandler(a -> {
+                                if (a.succeeded()) {
+                                    if ("0".equals(ignore)){
+                                        int result = a.result().getUpdated();
+                                        if(result == 0) {
+                                            throw new TollgeException("no update: " + sqlParam.getSqlKey());
+                                        }
+                                    }
+                                } else {
+                                    throw new TollgeException("transaction update error: " + sqlParam.getSqlKey());
+                                }
+                            }));
                         }
-                    });
-                } catch (Exception e) {
-                    rollback(msg, f);
-                    reConn.fail(e);
-                }
-                return reConn;
-            });
-        }
 
-        // 提交或回滚
-        connF.setHandler(conn -> {
-            if (conn.succeeded()) {
-                conn.result().commit(res -> {
-                    if (res.succeeded()) {
-                        setAutoCommitAndClose(conn.result());
-                        msg.reply(sqlAndParamsList.size());
+                        deals.setHandler(res -> {
+                            if(res.succeeded()) {
+                                conn.commit(commitR -> {
+                                    if(commitR.succeeded()) {
+                                        setAutoCommitAndClose(conn);
+                                        msg.reply(sqlAndParamsList.size());
+                                    } else {
+                                        log.error("transaction.commit error", commitR.cause());
+                                        rollback(msg, conn);
+                                        msg.fail(501, commitR.cause().toString());
+                                    }
+                                });
+                            } else {
+                                log.error("transaction.setAutoCommit error", res.cause());
+                                rollback(msg, conn);
+                                msg.fail(501, res.cause().toString());
+                            }
+                        });
+
                     } else {
-                        log.error("unknown error", conn.cause());
-                        rollback(msg, conn.result());
-                        msg.fail(501, res.cause().toString());
+                        log.error("transaction error", r.cause());
+                        setAutoCommitAndClose(conn);
+                        msg.fail(501, r.cause().toString());
                     }
                 });
+
             } else {
-                log.error("error:", conn.cause());
-                msg.fail(501, conn.cause().toString());
+                log.error("transaction.connect error", connR.cause());
+                if(conn != null) {
+                    conn.close();
+                }
+                msg.fail(501, connR.cause().toString());
             }
         });
-
     }
 
     private void rollback(Message<JsonArray> msg, SQLConnection conn) {
-        log.info("error occur and rollback");
         conn.rollback(rollRes -> {
             if (rollRes.succeeded()) {
                 setAutoCommitAndClose(conn);
             } else {
+                setAutoCommitAndClose(conn);
+                log.error("rollback error:", rollRes.cause());
                 msg.fail(501, rollRes.cause().toString());
             }
         });
@@ -333,8 +359,8 @@ public class DaoVerticle extends AbstractDao {
             if (!auto.succeeded()) {
                 log.error("can not set autocommit", auto.cause());
             }
+            conn.close();
         });
-        conn.close();
     }
 
     @Override

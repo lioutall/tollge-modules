@@ -4,6 +4,7 @@ import com.alicp.jetcache.Cache;
 import com.alicp.jetcache.RefreshPolicy;
 import com.alicp.jetcache.embedded.CaffeineCacheBuilder;
 import com.google.common.base.Preconditions;
+import com.tollge.common.StatusCodeMsg;
 import com.tollge.common.annotation.mark.Biz;
 import com.tollge.common.annotation.mark.Path;
 import com.tollge.common.annotation.valid.NotNull;
@@ -90,6 +91,7 @@ public class GZHVerticle extends BizVerticle {
                         msg.reply(jsonObject);
                     } else {
                         log.error("code2accessCode failed", res.cause());
+                        msg.fail(StatusCodeMsg.C404.getCode(), res.cause().getMessage());
                     }
                 });
     }
@@ -116,6 +118,7 @@ public class GZHVerticle extends BizVerticle {
                         msg.reply(jsonObject);
                     } else {
                         log.error("userInfo failed", res.cause());
+                        msg.fail(StatusCodeMsg.C404.getCode(), res.cause().getMessage());
                     }
                 });
     }
@@ -145,6 +148,7 @@ public class GZHVerticle extends BizVerticle {
                                 msg.reply(res.result().bodyAsJsonObject());
                             } else {
                                 log.error("[临时二维码] failed", res.cause());
+                                msg.fail(StatusCodeMsg.C404.getCode(), res.cause().getMessage());
                             }
                         });
     }
@@ -172,6 +176,7 @@ public class GZHVerticle extends BizVerticle {
                                 msg.reply(res.result().bodyAsJsonObject());
                             } else {
                                 log.error("[链接转短链] failed", res.cause());
+                                msg.fail(StatusCodeMsg.C404.getCode(), res.cause().getMessage());
                             }
                         });
     }
