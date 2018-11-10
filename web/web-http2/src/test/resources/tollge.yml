@@ -1,0 +1,8 @@
+application:
+  context.path:
+  http2.port: 8090
+  baseScan: test.http
+web:
+  http2.keyPath: tls/server-key.pem
+  http2.certPath: tls/server-cert.pem
+  http2.timeoutSeconds: 600

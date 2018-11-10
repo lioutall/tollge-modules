@@ -7,4 +7,5 @@ include 'wechat:wechat-gzh'
 include 'data:curd-vertx'
 include 'data:curd-reactive-pg'
 include 'web:web-http'
+include 'web:web-http2'
 
