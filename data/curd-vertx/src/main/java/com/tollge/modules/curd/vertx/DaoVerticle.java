@@ -318,7 +318,7 @@ public class DaoVerticle extends AbstractDao {
                                     }
                                 });
                             } else {
-                                log.error("transaction.setAutoCommit error", res.cause());
+                                log.error("transaction error", res.cause());
                                 rollback(msg, conn);
                                 msg.fail(501, res.cause().toString());
                             }
