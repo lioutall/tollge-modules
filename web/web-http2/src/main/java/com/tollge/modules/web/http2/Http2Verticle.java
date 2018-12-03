@@ -1,9 +1,9 @@
 package com.tollge.modules.web.http2;
 
-import  com.tollge.common.UFailureHandler;
-import  com.tollge.common.util.Properties;
-import  com.tollge.common.util.ReflectionUtil;
-import  com.tollge.common.verticle.AbstractRouter;
+import com.tollge.common.UFailureHandler;
+import com.tollge.common.util.Properties;
+import com.tollge.common.util.ReflectionUtil;
+import com.tollge.common.verticle.AbstractRouter;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerOptions;
@@ -77,6 +77,7 @@ public class Http2Verticle extends AbstractVerticle {
         String certPath = Properties.getString("web", "http2.certPath");
         int timeoutSeconds = Properties.getInteger("web", "http2.timeoutSeconds");
         log.info("http2服务监听端口:{}", port);
+
         vertx.createHttpServer(
                 new HttpServerOptions()
                         .setSsl(true)

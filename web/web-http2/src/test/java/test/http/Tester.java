@@ -23,6 +23,7 @@ public class Tester {
 
     @Test
     public void run() {
+        System.setProperty("vertx.cwd", "test/http");
         TestOptions options = new TestOptions().addReporter(new ReportOptions().setTo("console"));
         TestSuite suite = TestSuite.create("test - http2");
         suite.before(ts -> {
@@ -37,7 +38,7 @@ public class Tester {
         suite.test("web", context -> {
             Async async = context.async();
             WebClient client = WebClient.create(vertx);
-            client.get(8090, "localhost", "/web/test/testkey")
+            client.get(8443, "localhost", "/web/test/testkey")
                     .ssl(true)
                     .send(
                         b -> {
