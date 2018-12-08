@@ -1,0 +1,4 @@
+wechat:
+  gzh.host: api.weixin.qq.com
+  gzh.port: 443
+  gzh.isSSL: true

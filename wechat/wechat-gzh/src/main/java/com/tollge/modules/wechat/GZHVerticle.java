@@ -8,6 +8,7 @@ import com.tollge.common.StatusCodeMsg;
 import com.tollge.common.annotation.mark.Biz;
 import com.tollge.common.annotation.mark.Path;
 import com.tollge.common.annotation.valid.NotNull;
+import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.BizVerticle;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.eventbus.Message;
@@ -32,7 +33,9 @@ import static com.tollge.modules.wechat.GZHUtil.SECRET;
 public class GZHVerticle extends BizVerticle {
 
     private static final int EXPIRE_BEFORE = 7200;
-    private static final String API_WEIXIN_QQ_COM = "api.weixin.qq.com";
+    private static final String API_WEIXIN_QQ_COM = Properties.getString("wechat", "gzh.host");
+    private static final boolean API_WEIXIN_QQ_COM_SSL = Properties.getBoolean("wechat", "gzh.isSSL");
+    private static final int API_WEIXIN_QQ_COM_PORT = Properties.getInteger("wechat", "gzh.port");
     private static final String ACCESS_TOKEN = "access_token";
     private static final String OPENID = "openid";
 
@@ -46,8 +49,11 @@ public class GZHVerticle extends BizVerticle {
             .loader(key -> {
                 log.debug("begin fetch gzh token!");
 
-                URL obj = new URL("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=" + APPID + "&secret=" + SECRET);
+                String port = API_WEIXIN_QQ_COM_SSL && API_WEIXIN_QQ_COM_PORT == 443 ? "" : ":" + API_WEIXIN_QQ_COM_PORT;
+                String url = (API_WEIXIN_QQ_COM_SSL ? "https" : "http") + "://" + API_WEIXIN_QQ_COM + port + "/cgi-bin/token?grant_type=client_credential&appid=" + APPID + "&secret=" + SECRET;
+                URL obj = new URL(url);
                 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+                con.setConnectTimeout(5000);
 
                 con.setRequestMethod("GET");
                 StringBuilder response = new StringBuilder();
@@ -81,9 +87,9 @@ public class GZHVerticle extends BizVerticle {
         JsonObject jo = msg.body();
         WebClient client = WebClient.create(vertx);
 
-        client.get(443, API_WEIXIN_QQ_COM, "/sns/oauth2/access_token?appid=" + APPID
+        client.get(API_WEIXIN_QQ_COM_PORT, API_WEIXIN_QQ_COM, "/sns/oauth2/access_token?appid=" + APPID
                 + "&secret=" + SECRET + "&code=" + jo.getString("code") + "&grant_type=authorization_code")
-                .ssl(true)
+                .ssl(API_WEIXIN_QQ_COM_SSL)
                 .send(res -> {
                     if (res.succeeded()) {
                         JsonObject jsonObject = res.result().bodyAsJsonObject();
@@ -109,9 +115,9 @@ public class GZHVerticle extends BizVerticle {
         Preconditions.checkArgument(!StringUtil.isNullOrEmpty(jo.getString(OPENID)), "openid should not be null.");
         WebClient client = WebClient.create(vertx);
 
-        client.get(443, API_WEIXIN_QQ_COM, "/sns/userinfo?access_token=" + jo.getString(ACCESS_TOKEN)
+        client.get(API_WEIXIN_QQ_COM_PORT, API_WEIXIN_QQ_COM, "/sns/userinfo?access_token=" + jo.getString(ACCESS_TOKEN)
                 + "&openid=" + jo.getString(OPENID) + "&lang=zh_CN")
-                .ssl(true)
+                .ssl(API_WEIXIN_QQ_COM_SSL)
                 .send(res -> {
                     if (res.succeeded()) {
                         JsonObject jsonObject = res.result().bodyAsJsonObject();
@@ -139,8 +145,8 @@ public class GZHVerticle extends BizVerticle {
 
         WebClient client = WebClient.create(vertx);
 
-        client.post(443, API_WEIXIN_QQ_COM, "/cgi-bin/qrcode/create?access_token=" + TOKEN.get(""))
-                .ssl(true)
+        client.post(API_WEIXIN_QQ_COM_PORT, API_WEIXIN_QQ_COM, "/cgi-bin/qrcode/create?access_token=" + TOKEN.get(""))
+                .ssl(API_WEIXIN_QQ_COM_SSL)
                 .sendJsonObject(body,
                         res -> {
                             if (res.succeeded()) {
@@ -167,8 +173,8 @@ public class GZHVerticle extends BizVerticle {
 
         WebClient client = WebClient.create(vertx);
 
-        client.post(443, API_WEIXIN_QQ_COM, "/cgi-bin/shorturl?access_token=" + TOKEN.get(""))
-                .ssl(true)
+        client.post(API_WEIXIN_QQ_COM_PORT, API_WEIXIN_QQ_COM, "/cgi-bin/shorturl?access_token=" + TOKEN.get(""))
+                .ssl(API_WEIXIN_QQ_COM_SSL)
                 .sendJsonObject(body,
                         res -> {
                             if (res.succeeded()) {
