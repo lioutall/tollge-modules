@@ -55,6 +55,7 @@ public class HttpVerticle extends AbstractVerticle {
                         case PUT: r = router.put(contextPath);break;
                         case DELETE: r = router.delete(contextPath);break;
                         case TRACE: r = router.trace(contextPath);break;
+                        case OPTIONS: r = router.options(contextPath);break;
                         default: r = router.route(contextPath);break;
                     }
                     r.produces(pathMark.contentType()).handler(routingContextConsumer)
