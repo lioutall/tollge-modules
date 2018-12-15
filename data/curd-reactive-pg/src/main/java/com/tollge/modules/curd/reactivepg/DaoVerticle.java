@@ -111,11 +111,11 @@ public class DaoVerticle extends AbstractDao {
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
                 PgConnection conn = connection.result();
-                SqlSession sqlSessionCount = getSqlSession(msg, sqlAndParams);
-                if (sqlSessionCount == null) {
+                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
+                if (sqlSession == null) {
                     return;
                 }
-                conn.preparedQuery("select count(1) from (".concat(sqlSessionCount.getSql()).concat(") tab"), jsonArray2Tuple(sqlSessionCount.getParams()), getCount -> {
+                conn.preparedQuery("select count(1) from (".concat(sqlSession.getSql()).concat(") tab"), jsonArray2Tuple(sqlSession.getParams()), getCount -> {
                     if (getCount.succeeded()) {
                         // 返回结果
                         JsonObject result = new JsonObject();
@@ -123,11 +123,16 @@ public class DaoVerticle extends AbstractDao {
                         PgIterator ite = getCount.result().iterator();
                         Row r = ite.next();
                         Long count = r.getLong(0);
-                        // 执行获得数据结果
-                        SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                        if (sqlSession == null) {
+
+                        if(count == 0) {
+                            result.put(Const.TOLLGE_PAGE_COUNT, count);
+                            result.put(Const.TOLLGE_PAGE_DATA, new JsonArray());
+                            msg.reply(result);
+                            conn.close();
                             return;
                         }
+
+                        // 执行获得数据结果
                         conn.preparedQuery(sqlSession.getSql().concat(" limit " + sqlAndParams.getLimit() + " offset " + sqlAndParams.getOffset()), jsonArray2Tuple(sqlSession.getParams()), getData -> {
                             if (getData.succeeded()) {
                                 JsonArray rows = under2Camel(getData);

@@ -95,21 +95,26 @@ public class DaoVerticle extends AbstractDao {
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
                 SQLConnection conn = connection.result();
-                SqlSession sqlSessionCount = getSqlSession(msg, sqlAndParams);
-                if (sqlSessionCount == null) {
+                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
+                if (sqlSession == null) {
                     return;
                 }
-                conn.queryWithParams("select count(1) from (".concat(sqlSessionCount.getSql()).concat(") tab"), new JsonArray(sqlSessionCount.getParams()), getCount -> {
+                conn.queryWithParams("select count(1) from (".concat(sqlSession.getSql()).concat(") tab"), new JsonArray(sqlSession.getParams()), getCount -> {
                     if (getCount.succeeded()) {
                         // 返回结果
                         JsonObject result = new JsonObject();
                         // 获得数据总行数
                         Long count = getCount.result().getResults().get(0).getLong(0);
-                        // 执行获得数据结果
-                        SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                        if (sqlSession == null) {
+
+                        if(count == 0) {
+                            result.put(Const.TOLLGE_PAGE_COUNT, count);
+                            result.put(Const.TOLLGE_PAGE_DATA, new JsonArray());
+                            msg.reply(result);
+                            conn.close();
                             return;
                         }
+
+                        // 执行获得数据结果
                         conn.queryWithParams(sqlSession.getSql().concat(" limit " + sqlAndParams.getLimit() + " offset " + sqlAndParams.getOffset()), new JsonArray(sqlSession.getParams()), getData -> {
                             if (getData.succeeded()) {
                                 ResultSet rs = under2Camel(getData);
