@@ -230,14 +230,25 @@ public class DaoVerticle extends AbstractDao {
                 }
                 conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), res -> {
                     if (res.succeeded()) {
-                        PgIterator ite = res.result().iterator();
-                        Row r = ite.next();
-                        Object result = r.getValue(0);
-                        if (result instanceof Json) {
-                            msg.reply(((Json) result).value());
-                        } else {
+                        PgRowSet rows = res.result();
+
+                        if(rows.columnsNames() != null && !rows.columnsNames().isEmpty()) {
+                            PgIterator ite = rows.iterator();
+
+                            JsonArray result = new JsonArray();
+                            while (ite.hasNext()) {
+                                Row r = ite.next();
+                                JsonObject jo = new JsonObject();
+                                for (int i = 0; i < rows.columnsNames().size(); i++) {
+                                    jo.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, rows.columnsNames().get(i)), r.getValue(i));
+                                }
+                                result.add(jo);
+                            }
                             msg.reply(result);
+                        } else {
+                            msg.reply(rows.rowCount());
                         }
+
                         conn.close();
                     } else {
                         log.error("operate.query failed", res.cause());
