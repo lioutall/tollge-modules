@@ -57,4 +57,10 @@ public class AuthDefault extends AbstractAuth {
         ImmutableSet<String> sendback = ImmutableSet.of("*");
         resultHandler.handle(Future.succeededFuture(sendback));
     }
+
+    @Override
+    public void kickUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
+        // nothing
+        resultHandler.handle(Future.succeededFuture(true));
+    }
 }
