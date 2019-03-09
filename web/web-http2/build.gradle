@@ -3,8 +3,11 @@ apply plugin: 'java'
 sourceCompatibility = 1.8
 
 group 'com.tollge.modules'
+version module_web_http2_version
 
 dependencies {
+    annotationProcessor 'org.projectlombok:lombok:' + lombok_version
+    
     compile 'com.tollge:tollge:' + tollge_version
 
     runtime "io.netty:netty-tcnative-boringssl-static:2.0.19.Final"

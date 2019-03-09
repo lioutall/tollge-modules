@@ -4,11 +4,15 @@ sourceCompatibility = 1.8
 
 group 'com.tollge.modules'
 
+version module_auth_common_version
+
 dependencies {
+    annotationProcessor 'org.projectlombok:lombok:' + lombok_version
+    
     compile 'com.tollge:tollge:' + tollge_version
     compile "io.vertx:vertx-auth-common:" + vertx_version
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'io.vertx', name: 'vertx-unit', version: '3.5.0'
-    testRuntimeOnly 'com.tollge.modules:web-http:' + tollge_version
+    testRuntimeOnly project(':web:web-http')
 }

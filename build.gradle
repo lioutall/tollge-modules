@@ -6,15 +6,27 @@ group 'com.tollge.modules'
 allprojects {
     apply plugin: 'maven'
 
-    version '0.1.0-SNAPSHOT'
+    version '0.1.0'
     repositories {
         mavenLocal()
         mavenCentral()
     }
 
     project.ext.vertx_version = "3.5.2"
-    project.ext.tollge_version = "0.1.0-SNAPSHOT"
+    project.ext.tollge_version = "0.1.1"
+    project.ext.lombok_version = "1.18.2"
+
+    project.ext.module_auth_common_version = "0.1.0-SNAPSHOT"
+    project.ext.module_curd_reactivepg_version = "0.1.0-SNAPSHOT"
+    project.ext.module_curd_vertx_version = "0.1.0-SNAPSHOT"
+    project.ext.module_oss_qiniu_version = "0.1.0-SNAPSHOT"
+    project.ext.module_sms_dayu_version = "0.1.0-SNAPSHOT"
+    project.ext.module_web_http_version = "0.1.0-SNAPSHOT"
+    project.ext.module_web_http2_version = "0.1.0-SNAPSHOT"
+    project.ext.module_wechat_gzh_version = "0.1.0-SNAPSHOT"
+
 }
 
 dependencies {
 }
+

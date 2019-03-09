@@ -3,10 +3,13 @@ apply plugin: 'java'
 sourceCompatibility = 1.8
 
 group 'com.tollge.modules'
+version module_wechat_gzh_version
 
 dependencies {
+    annotationProcessor 'org.projectlombok:lombok:' + lombok_version
+    
     compileOnly 'com.tollge:tollge:' + tollge_version
-    compileOnly 'com.tollge.modules:web-http:' + tollge_version
+    compileOnly project(':web:web-http')
     
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'io.vertx', name: 'vertx-unit', version: '3.5.0'
