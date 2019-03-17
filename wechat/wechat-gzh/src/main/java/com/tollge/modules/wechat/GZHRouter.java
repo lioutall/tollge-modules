@@ -54,10 +54,10 @@ public class GZHRouter extends AbstractRouter {
         String str = Stream.of(EVENT_TOKEN, timestamp, nonce).sorted().collect(Collectors.joining());
 
         try {
-            if (!signature.equalsIgnoreCase(SHA1Util.encode(str))) {
+            if (!signature.equals(SHA1.encode(str))) {
                 throw new IllegalArgumentException();
             }
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+        } catch (NoSuchAlgorithmException e) {
             log.error("sha1 失败", e);
             rct.response().end();
             return;

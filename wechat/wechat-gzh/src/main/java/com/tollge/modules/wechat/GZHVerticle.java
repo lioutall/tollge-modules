@@ -229,7 +229,7 @@ public class GZHVerticle extends BizVerticle {
     public void jsTicket(Message<JsonObject> msg) {
         JsonObject jsonObject = new JsonObject();
         jsonObject.put("jsapi_ticket", JS_TICKET.get(""));
-        jsonObject.put("nonceStr", random.nextLong());
+        jsonObject.put("noncestr", random.nextLong());
         jsonObject.put("timestamp", System.currentTimeMillis() / 1000);
         jsonObject.put("url", msg.body().getString("url"));
 
@@ -240,30 +240,16 @@ public class GZHVerticle extends BizVerticle {
         try {
             JsonObject result = new JsonObject();
             result.put("timestamp", jsonObject.getValue("timestamp"));
-            result.put("nonceStr", jsonObject.getValue("nonceStr").toString());
-            result.put("signature", SHA1Util.encode(string1));
+            result.put("nonceStr", jsonObject.getValue("noncestr").toString());
+            result.put("signature", SHA1.encode(string1));
             result.put("appId", APPID);
-            log.info("我要的对象:{}", result);
+            log.info("签名对象:{} \nstring1={}\n我要的对象:{}", jsonObject, string1, result);
             msg.reply(result);
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+        } catch (NoSuchAlgorithmException e) {
             log.error("sha1 失败", e);
             msg.fail(StatusCodeMsg.C201.getCode(), "sha1 失败");
         }
 
-    }
-
-
-    public static void main(String[] args) throws UnsupportedEncodingException, NoSuchAlgorithmException {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.put("jsapi_ticket", "HoagFKDcsGMVCIY2vOjf9nzXe4S3IGPAKkxf40-Pwk1mABk2cg4Hvi2imCgKagl6EmNrR4XByOiZCehNu2mmBA");
-        jsonObject.put("nonceStr", "2952968133897719223");
-        jsonObject.put("timestamp", 1552831622);
-        jsonObject.put("url", "http://wechat.tollge.cn/mobile.html/store/in-store");
-
-        String string1 = jsonObject.stream().sorted(Comparator.comparing(Map.Entry::getKey))
-                                   .map(o -> o.getKey() + "=" + o.getValue()).collect(Collectors.joining("&"));
-        System.out.println(string1);
-        System.out.println(SHA1Util.encode(string1));
     }
 
 }
