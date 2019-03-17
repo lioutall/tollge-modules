@@ -8,4 +8,5 @@ include 'data:curd-vertx'
 include 'data:curd-reactive-pg'
 include 'web:web-http'
 include 'web:web-http2'
+include 'microservices:microservices-eureka'
 

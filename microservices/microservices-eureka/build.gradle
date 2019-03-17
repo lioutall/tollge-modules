@@ -1,0 +1,16 @@
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+group 'com.tollge.modules'
+version module_curd_vertx_version
+
+dependencies {
+    annotationProcessor 'org.projectlombok:lombok:' + lombok_version
+
+    compile 'com.netflix.eureka:eureka-client:1.9.9'
+    compile 'com.tollge:tollge:' + tollge_version
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'io.vertx', name: 'vertx-unit', version: '3.5.0'
+}

@@ -4,6 +4,7 @@ import com.alicp.jetcache.Cache;
 import com.alicp.jetcache.RefreshPolicy;
 import com.alicp.jetcache.embedded.CaffeineCacheBuilder;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.tollge.common.StatusCodeMsg;
 import com.tollge.common.annotation.mark.Biz;
 import com.tollge.common.annotation.mark.Path;
@@ -18,12 +19,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
-import static com.tollge.modules.wechat.GZHUtil.APPID;
-import static com.tollge.modules.wechat.GZHUtil.SECRET;
+import static com.tollge.modules.wechat.GZHUtil.*;
 
 /**
  * 微信公众号
@@ -38,6 +43,8 @@ public class GZHVerticle extends BizVerticle {
     private static final int API_WEIXIN_QQ_COM_PORT = Properties.getInteger("wechat", "gzh.port");
     private static final String ACCESS_TOKEN = "access_token";
     private static final String OPENID = "openid";
+
+    static Random random = new Random();
 
     // 120分钟自动刷新, 30分钟未访问则停止
     private static RefreshPolicy policy = RefreshPolicy.newPolicy(EXPIRE_BEFORE - 30L, TimeUnit.SECONDS)
@@ -71,6 +78,32 @@ public class GZHVerticle extends BizVerticle {
             })
             .refreshPolicy(policy)
             .buildCache();
+
+    private static Cache<String, String> JS_TICKET =
+            CaffeineCacheBuilder.createCaffeineCacheBuilder().expireAfterWrite(EXPIRE_BEFORE, TimeUnit.SECONDS)
+                                .loader(key -> {
+                                    log.debug("begin fetch js ticket!");
+
+                                    String port = API_WEIXIN_QQ_COM_SSL && API_WEIXIN_QQ_COM_PORT == 443 ? "" : ":" + API_WEIXIN_QQ_COM_PORT;
+                                    String url = (API_WEIXIN_QQ_COM_SSL ? "https" : "http") + "://" + API_WEIXIN_QQ_COM + port + "/cgi-bin/ticket/getticket?access_token="+TOKEN.get("")+"&type=jsapi";
+                                    URL obj = new URL(url);
+                                    HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+                                    con.setConnectTimeout(5000);
+
+                                    con.setRequestMethod("GET");
+                                    StringBuilder response = new StringBuilder();
+
+                                    try (BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
+                                        String inputLine;
+
+                                        while ((inputLine = in.readLine()) != null) {
+                                            response.append(inputLine);
+                                        }
+                                    }
+                                    log.debug("end fetch js ticket:{}", response);
+
+                                    return new JsonObject(response.toString()).getString("ticket");
+                                }).refreshPolicy(policy).buildCache();
 
     public static String getToken() {
         return TOKEN.get("");
@@ -185,6 +218,52 @@ public class GZHVerticle extends BizVerticle {
                                 msg.fail(StatusCodeMsg.C404.getCode(), res.cause().getMessage());
                             }
                         });
+    }
+
+    /**
+     * 通过config接口注入权限验证配置
+     *
+     * @param msg []
+     */
+    @Path("/wxConfig")
+    public void jsTicket(Message<JsonObject> msg) {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.put("jsapi_ticket", JS_TICKET.get(""));
+        jsonObject.put("nonceStr", random.nextLong());
+        jsonObject.put("timestamp", System.currentTimeMillis() / 1000);
+        jsonObject.put("url", msg.body().getString("url"));
+
+        // 对所有待签名参数按照字段名的ASCII 码从小到大排序（字典序）后，使用URL键值对的格式（即key1=value1&key2=value2…）拼接成字符串string1
+        String string1 = jsonObject.stream().sorted(Comparator.comparing(Map.Entry::getKey))
+                            .map(o -> o.getKey() + "=" + o.getValue()).collect(Collectors.joining("&"));
+
+        try {
+            JsonObject result = new JsonObject();
+            result.put("timestamp", jsonObject.getValue("timestamp"));
+            result.put("nonceStr", jsonObject.getValue("nonceStr").toString());
+            result.put("signature", SHA1Util.encode(string1));
+            result.put("appId", APPID);
+            log.info("我要的对象:{}", result);
+            msg.reply(result);
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+            log.error("sha1 失败", e);
+            msg.fail(StatusCodeMsg.C201.getCode(), "sha1 失败");
+        }
+
+    }
+
+
+    public static void main(String[] args) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.put("jsapi_ticket", "HoagFKDcsGMVCIY2vOjf9nzXe4S3IGPAKkxf40-Pwk1mABk2cg4Hvi2imCgKagl6EmNrR4XByOiZCehNu2mmBA");
+        jsonObject.put("nonceStr", "2952968133897719223");
+        jsonObject.put("timestamp", 1552831622);
+        jsonObject.put("url", "http://wechat.tollge.cn/mobile.html/store/in-store");
+
+        String string1 = jsonObject.stream().sorted(Comparator.comparing(Map.Entry::getKey))
+                                   .map(o -> o.getKey() + "=" + o.getValue()).collect(Collectors.joining("&"));
+        System.out.println(string1);
+        System.out.println(SHA1Util.encode(string1));
     }
 
 }
