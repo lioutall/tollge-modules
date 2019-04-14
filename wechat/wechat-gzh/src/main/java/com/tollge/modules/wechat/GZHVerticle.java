@@ -243,7 +243,6 @@ public class GZHVerticle extends BizVerticle {
             result.put("nonceStr", jsonObject.getValue("noncestr").toString());
             result.put("signature", SHA1.encode(string1));
             result.put("appId", APPID);
-            log.info("签名对象:{} \nstring1={}\n我要的对象:{}", jsonObject, string1, result);
             msg.reply(result);
         } catch (NoSuchAlgorithmException e) {
             log.error("sha1 失败", e);
