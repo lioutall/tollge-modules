@@ -95,4 +95,9 @@ public class AuthCustom extends AbstractAuth {
     public void getAnnoPremissions(Handler<AsyncResult<ImmutableSet<String>>> resultHandler) {
         resultHandler.handle(Future.succeededFuture(ImmutableSet.of("GET:/web/login")));
     }
+
+    @Override
+    public void kickUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
+        resultHandler.handle(Future.succeededFuture(true));
+    }
 }

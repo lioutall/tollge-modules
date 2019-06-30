@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 public class Http2Verticle extends AbstractVerticle {
 
     @Override
+    @SuppressWarnings("unchecked")
     public void start() {
         io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
 
@@ -45,7 +46,7 @@ public class Http2Verticle extends AbstractVerticle {
         for (Class<?> c : set) {
             Http2 mark = c.getAnnotation(Http2.class);
             try {
-                AbstractRouter abstractRouter = (AbstractRouter)c.newInstance();
+                AbstractRouter abstractRouter = (AbstractRouter)c.getDeclaredConstructor().newInstance();
                 abstractRouter.getMap().forEach((pathMark, routingContextConsumer) -> {
                     String path = mark.value().concat(pathMark.value());
                     String contextPath = Properties.getString("application","context.path", "") + path;
@@ -66,7 +67,7 @@ public class Http2Verticle extends AbstractVerticle {
                     });
                     log.info("监听 {}:{}", pathMark.method().name(), path);
                 });
-            } catch (InstantiationException | IllegalAccessException e) {
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                 log.error("初始化({})失败", c, e);
             }
 
@@ -84,7 +85,7 @@ public class Http2Verticle extends AbstractVerticle {
                         .setUseAlpn(true)
                         .setPemKeyCertOptions(new PemKeyCertOptions().setKeyPath(keyPath).setCertPath(certPath))
                         .setIdleTimeout(timeoutSeconds)
-        ).requestHandler(router::accept).listen(port);
+        ).requestHandler(router).listen(port);
     }
 
 }

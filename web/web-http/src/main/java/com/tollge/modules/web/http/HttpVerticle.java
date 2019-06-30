@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public class HttpVerticle extends AbstractVerticle {
 
     @Override
+    @SuppressWarnings("unchecked")
     public void start() {
         io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
 
@@ -43,7 +44,7 @@ public class HttpVerticle extends AbstractVerticle {
         for (Class<?> c : set) {
             Http mark = c.getAnnotation(Http.class);
             try {
-                AbstractRouter abstractRouter = (AbstractRouter)c.newInstance();
+                AbstractRouter abstractRouter = (AbstractRouter)c.getDeclaredConstructor().newInstance();
                 abstractRouter.getMap().forEach((pathMark, routingContextConsumer) -> {
                     String path = mark.value().concat(pathMark.value());
                     String contextPath = Properties.getString("application","context.path", "") + path;
@@ -65,7 +66,7 @@ public class HttpVerticle extends AbstractVerticle {
                     });
                     log.info("监听 {}:{}", pathMark.method().name(), path);
                 });
-            } catch (InstantiationException | IllegalAccessException e) {
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                 log.error("初始化({})失败", c, e);
             }
 
@@ -73,7 +74,7 @@ public class HttpVerticle extends AbstractVerticle {
 
         int port = Properties.getInteger("application", "http.port");
         log.info("http服务监听端口:{}", port);
-        vertx.createHttpServer().requestHandler(router::accept).listen(port);
+        vertx.createHttpServer().requestHandler(router).listen(port);
     }
 
 }

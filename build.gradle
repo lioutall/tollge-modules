@@ -1,19 +1,23 @@
 apply plugin: 'maven'
 apply plugin: 'idea'
 
+
+
 group 'com.tollge.modules'
 
 allprojects {
     apply plugin: 'maven'
 
-    version '0.1.0-SNAPSHOT'
+    version '0.1.2'
     repositories {
         mavenLocal()
         mavenCentral()
     }
 
-    project.ext.vertx_version = "3.5.2"
-    project.ext.tollge_version = "0.1.0-SNAPSHOT"
+    project.ext.vertx_version = "3.7.1"
+    project.ext.tollge_version = "0.1.2"
+    project.ext.lombok_version = "1.18.8"
+
 }
 
 dependencies {
