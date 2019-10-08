@@ -1,0 +1,2 @@
+verticles:
+  eurekaClient: com.tollge.modules.microservices.eureka.client.EurekaHttpClientVerticle,1

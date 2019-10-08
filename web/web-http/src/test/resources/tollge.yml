@@ -2,3 +2,7 @@ application:
   context.path:
   http.port: 8090
   baseScan: test.http
+
+# just for test
+verticles:
+  http: com.tollge.modules.web.http.HttpVerticle

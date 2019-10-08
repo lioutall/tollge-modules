@@ -1,0 +1,8 @@
+application:
+  context.path:
+  http.port: 8090
+  baseScan: test.eureka
+
+# just for test
+verticles:
+  eurekaServer: com.tollge.modules.microservices.eureka.server.EurekaServerVerticle,1

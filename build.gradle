@@ -24,6 +24,7 @@ allprojects {
     project.ext.module_web_http_version = "0.1.0-SNAPSHOT"
     project.ext.module_web_http2_version = "0.1.0-SNAPSHOT"
     project.ext.module_wechat_gzh_version = "0.1.0-SNAPSHOT"
+    project.ext.module_microservices_eureka_version = "0.1.0-SNAPSHOT"
 
 }
 
