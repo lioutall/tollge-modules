@@ -15,4 +15,12 @@ public class EurekaClientUtil {
                                                  .put("requestURI", uri)
                                                  .put("params", params), replyHandler);
     }
+
+    public static <T> void post(String vipAddress, String uri, JsonObject params, JsonObject body, Handler<AsyncResult<Message<T>>> replyHandler) {
+        MyVertx.vertx().eventBus()
+               .send("eureka:post", new JsonObject().put("vipAddress", vipAddress)
+                                                   .put("requestURI", uri)
+                                                   .put("params", params)
+                                                   .put("body", body), replyHandler);
+    }
 }

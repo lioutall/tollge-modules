@@ -49,6 +49,7 @@ public class EurekaHttpClientVerticle extends AbstractVerticle {
     @Override
     public void start() {
         vertx.eventBus().consumer("eureka:get", this::get);
+        vertx.eventBus().consumer("eureka:post", this::post);
     }
 
     @Override
@@ -87,6 +88,38 @@ public class EurekaHttpClientVerticle extends AbstractVerticle {
                     msg.reply(response.body());
                 } else {
                     log.error("EurekaHttpClientVerticle.get wrong={} ",ar.cause().getMessage(), ar.cause());
+                    msg.fail(501, ar.cause().getMessage());
+                }
+            });
+        } catch (Exception e) {
+            log.error("getNextServerFromEureka failed, vipAddress={}", body.getString("vipAddress"), e);
+            msg.fail(501, e.getMessage());
+        }
+    }
+
+    protected void post(Message<JsonObject> msg) {
+        InstanceInfo nextServerInfo = null;
+        JsonObject body = msg.body();
+        try {
+            nextServerInfo = eurekaClient.getNextServerFromEureka(body.getString("vipAddress"), body.getBoolean("secure", false));
+            String ip = nextServerInfo.getIPAddr();
+            int port = nextServerInfo.getPort();
+
+            HttpRequest<Buffer> httpRequest = webClient.post(port, ip, body.getString("requestURI")).timeout(3000);
+
+            JsonObject params = body.getJsonObject("params");
+            if (params != null && !params.isEmpty()) {
+                for (Map.Entry<String, Object> param : params) {
+                    httpRequest.addQueryParam(param.getKey(), (String) param.getValue());
+                }
+            }
+            
+            httpRequest.as(BodyCodec.jsonObject()).sendJsonObject(body.getJsonObject("body"), ar -> {
+                if (ar.succeeded()) {
+                    HttpResponse<JsonObject> response = ar.result();
+                    msg.reply(response.body());
+                } else {
+                    log.error("EurekaHttpClientVerticle.post wrong={} ",ar.cause().getMessage(), ar.cause());
                     msg.fail(501, ar.cause().getMessage());
                 }
             });
