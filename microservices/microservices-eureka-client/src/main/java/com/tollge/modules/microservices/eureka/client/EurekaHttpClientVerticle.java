@@ -113,8 +113,8 @@ public class EurekaHttpClientVerticle extends AbstractVerticle {
                     httpRequest.addQueryParam(param.getKey(), (String) param.getValue());
                 }
             }
-            
-            httpRequest.as(BodyCodec.jsonObject()).sendJsonObject(body.getJsonObject("body"), ar -> {
+
+            httpRequest.as(BodyCodec.jsonObject()).sendJson(body.getValue("body"), ar -> {
                 if (ar.succeeded()) {
                     HttpResponse<JsonObject> response = ar.result();
                     msg.reply(response.body());
