@@ -1,10 +1,15 @@
 package test.auth;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
 import com.google.common.collect.ImmutableSet;
 import com.tollge.common.auth.AbstractAuth;
 import com.tollge.common.auth.Subject;
 import com.tollge.common.util.Const;
 import com.tollge.modules.auth.common.AuthUser;
+
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -12,10 +17,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.RoutingContext;
-
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 public class AuthCustom extends AbstractAuth {
     private Map<String, Subject> subjectCache = new HashMap<>();
@@ -94,5 +95,15 @@ public class AuthCustom extends AbstractAuth {
     @Override
     public void getAnnoPremissions(Handler<AsyncResult<ImmutableSet<String>>> resultHandler) {
         resultHandler.handle(Future.succeededFuture(ImmutableSet.of("GET:/web/login")));
+    }
+
+    /**
+     * 踢出关键字的用户
+     * @param key
+     * @param resultHandler
+     */
+    @Override
+    public void kickUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
+
     }
 }

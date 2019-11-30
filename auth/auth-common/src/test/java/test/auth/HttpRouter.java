@@ -12,7 +12,6 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import lombok.NoArgsConstructor;
-import sun.security.provider.MD5;
 
 
 @NoArgsConstructor
