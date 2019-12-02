@@ -14,10 +14,10 @@ allprojects {
         mavenCentral()
     }
 
-    project.ext.vertx_version = "3.7.1"
-    project.ext.tollge_version = "0.1.2"
+    project.ext.vertx_version = "3.8.4"
     project.ext.lombok_version = "1.18.8"
 
+    project.ext.tollge_version = "0.2.2"
 }
 
 dependencies {

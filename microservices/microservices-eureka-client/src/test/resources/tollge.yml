@@ -1,0 +1,6 @@
+application:
+  baseScan: test.eureka
+
+# just for test
+verticles:
+  eurekaClient: com.tollge.modules.microservices.eureka.client.EurekaHttpClientVerticle,1

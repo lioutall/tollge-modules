@@ -1,0 +1,2 @@
+verticles:
+  eurekaServer: com.tollge.modules.microservices.eureka.server.EurekaServerVerticle,1

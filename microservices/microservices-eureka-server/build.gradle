@@ -6,9 +6,16 @@ group 'com.tollge.modules'
 
 dependencies {
     annotationProcessor 'org.projectlombok:lombok:' + lombok_version
-    compileOnly 'com.tollge:tollge:' + tollge_version
-    compileOnly project(':web:web-http')
-    
+
+    compile 'com.netflix.eureka:eureka-client:1.9.9'
+
+    compile 'com.tollge:tollge:' + tollge_version
+
+    compile 'com.google.inject:guice:4.1.0'
+
+    compile 'io.vertx:vertx-web-client:' + vertx_version
+
+    testCompile project(':web:web-http')
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'io.vertx', name: 'vertx-unit', version: vertx_version
 }
