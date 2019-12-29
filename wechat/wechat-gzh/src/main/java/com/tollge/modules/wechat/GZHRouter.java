@@ -81,14 +81,14 @@ public class GZHRouter extends AbstractRouter {
                         if(EVENT_SCAN.equalsIgnoreCase(event)) {
                             String eventKey = getValue(body, "EventKey");
                             Preconditions.checkArgument(!StringUtil.isNullOrEmpty(eventKey), "参数[EventKey]错误");
-                            rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey),
+                            rct.vertx().eventBus().<String>request("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventKey),
                                     assertSuccess(rct, responseGZH(rct)));
                         } else if(EVENT_SUBSCRIBE.equalsIgnoreCase(event)) {
                             String eventkey = getValue(body, "EventKey");
                             if (StringUtil.isNullOrEmpty(eventkey)) {
                                 rct.response().end("");
                             } else {
-                                rct.vertx().eventBus().<String>send("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventkey.replace("qrscene_", "")),
+                                rct.vertx().eventBus().<String>request("biz://gzh/event/scan", new JsonObject().put("openId", fromUserName).put("key", eventkey.replace("qrscene_", "")),
                                         assertSuccess(rct, responseGZH(rct)));
                             }
                         } else {
@@ -96,7 +96,7 @@ public class GZHRouter extends AbstractRouter {
                         }
                         break;
                     case TEXT:
-                        rct.vertx().eventBus().<String>send("biz://gzh/event/text", new JsonObject().put("openId", fromUserName).put("text", getValue(body, "Content")),
+                        rct.vertx().eventBus().<String>request("biz://gzh/event/text", new JsonObject().put("openId", fromUserName).put("text", getValue(body, "Content")),
                                 assertSuccess(rct, responseGZH(rct)));
                         break;
                     default:

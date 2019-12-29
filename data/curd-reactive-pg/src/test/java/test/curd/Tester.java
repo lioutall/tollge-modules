@@ -33,7 +33,7 @@ public class Tester {
 
         suite.test("testDB", context -> {
             Async async = context.async();
-            vertx.eventBus().send("biz://tt/fetchOne", new JsonObject().put("a", "bbb"), reply -> {
+            vertx.eventBus().request("biz://tt/fetchOne", new JsonObject().put("a", "bbb"), reply -> {
                 if(reply.succeeded()) {
                     System.out.println("final: "+reply.result().body());
                 } else {
