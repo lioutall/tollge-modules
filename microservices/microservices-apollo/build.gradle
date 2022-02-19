@@ -9,8 +9,8 @@ dependencies {
 
     implementation 'com.tollge:tollge:' + tollge_version
 
-    implementation 'com.ctrip.framework.apollo:apollo-client:1.1.0'
+    api 'com.ctrip.framework.apollo:apollo-client:1.1.0'
 
-    testImplementation("io.vertx:vertx-junit5:4.2.5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    testImplementation("io.vertx:vertx-unit:" + vertx_version)
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
 }

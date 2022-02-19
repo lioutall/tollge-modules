@@ -9,9 +9,9 @@ dependencies {
     compileOnly 'com.tollge:tollge:' + tollge_version
 
 
-    testImplementation("io.vertx:vertx-junit5:4.2.5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    testImplementation("io.vertx:vertx-unit:" + vertx_version)
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
 
     // 七牛
-    implementation 'com.qiniu:qiniu-java-sdk:7.2.+'
+    api 'com.qiniu:qiniu-java-sdk:7.2.+'
 }

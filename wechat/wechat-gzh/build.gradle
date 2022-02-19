@@ -9,6 +9,6 @@ dependencies {
     compileOnly 'com.tollge:tollge:' + tollge_version
     compileOnly project(':web:web-http')
 
-    testImplementation("io.vertx:vertx-junit5:4.2.5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    testImplementation("io.vertx:vertx-unit:" + vertx_version)
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
 }

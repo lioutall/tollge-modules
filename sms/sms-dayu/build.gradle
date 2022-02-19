@@ -5,9 +5,9 @@ group 'com.tollge.modules'
 
 dependencies {
     compileOnly 'com.tollge:tollge:' + tollge_version
-    testImplementation("io.vertx:vertx-junit5:4.2.5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    testImplementation("io.vertx:vertx-unit:" + vertx_version)
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
     // 大鱼短信
-    implementation 'com.aliyun:aliyun-java-sdk-core:3.2.8'
-    implementation 'com.aliyun:aliyun-java-sdk-dysmsapi:1.1.0'
+    api 'com.aliyun:aliyun-java-sdk-core:3.2.8'
+    api 'com.aliyun:aliyun-java-sdk-dysmsapi:1.1.0'
 }

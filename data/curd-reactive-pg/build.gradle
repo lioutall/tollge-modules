@@ -8,9 +8,9 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:' + lombok_version
     implementation 'com.tollge:tollge:' + tollge_version
 
-    implementation 'com.tollge:sql-engine:0.1.0'
+    api 'com.tollge:sql-engine:0.1.0'
 
-    implementation 'io.reactiverse:reactive-pg-client:0.10.6'
+    api 'io.reactiverse:reactive-pg-client:0.10.6'
 
 
     testImplementation("io.vertx:vertx-unit:" + vertx_version)

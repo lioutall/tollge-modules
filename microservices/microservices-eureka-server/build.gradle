@@ -7,13 +7,13 @@ group 'com.tollge.modules'
 dependencies {
     annotationProcessor 'org.projectlombok:lombok:' + lombok_version
 
-    implementation 'com.netflix.eureka:eureka-client:1.9.9'
+    api 'com.netflix.eureka:eureka-client:1.9.9'
 
     implementation 'com.tollge:tollge:' + tollge_version
 
-    implementation 'com.google.inject:guice:4.1.0'
+    api 'com.google.inject:guice:4.1.0'
 
-    implementation 'io.vertx:vertx-web-client:' + vertx_version
+    api 'io.vertx:vertx-web-client:' + vertx_version
 
     testImplementation project(':web:web-http')
     testImplementation("io.vertx:vertx-unit:" + vertx_version)
