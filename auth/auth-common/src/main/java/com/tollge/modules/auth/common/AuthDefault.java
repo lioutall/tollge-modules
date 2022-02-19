@@ -48,7 +48,7 @@ public class AuthDefault extends AbstractAuth {
 
     @Override
     public void login(RoutingContext ctx, JsonObject authInfo, Handler<AsyncResult<User>> resultHandler) {
-        resultHandler.handle(Future.succeededFuture(new AuthUser()));
+        // resultHandler.handle(Future.succeededFuture(new AuthUser()));
     }
 
     @Override

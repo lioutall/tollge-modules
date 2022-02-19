@@ -7,10 +7,10 @@ group 'com.tollge.modules'
 dependencies {
     annotationProcessor 'org.projectlombok:lombok:' + lombok_version
     
-    compile 'com.tollge:tollge:' + tollge_version
-    compile "io.vertx:vertx-auth-common:" + vertx_version
+    implementation 'com.tollge:tollge:' + tollge_version
+    implementation "io.vertx:vertx-auth-common:" + vertx_version
 
-    testCompile group: 'junit', name: 'junit', version: '4.12'
-    testCompile group: 'io.vertx', name: 'vertx-unit', version: vertx_version
-    testCompile project(':web:web-http')
+    testImplementation("io.vertx:vertx-unit:" + vertx_version)
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
+    testImplementation project(':web:web-http')
 }

@@ -7,12 +7,13 @@ group 'com.tollge.modules'
 dependencies {
     annotationProcessor 'org.projectlombok:lombok:' + lombok_version
 
-    compile 'com.netflix.eureka:eureka-client:1.9.9'
+    implementation 'com.netflix.eureka:eureka-client:1.9.9'
 
-    compile 'com.tollge:tollge:' + tollge_version
+    implementation 'com.tollge:tollge:' + tollge_version
 
-    compile 'com.google.inject:guice:4.1.0'
+    implementation 'com.google.inject:guice:4.1.0'
 
-    testCompile group: 'junit', name: 'junit', version: '4.12'
-    testCompile group: 'io.vertx', name: 'vertx-unit', version: vertx_version
+    testImplementation("io.vertx:vertx-unit:" + vertx_version)
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
+    testImplementation("org.junit.jupiter:junit-jupiter:5.7.0")
 }

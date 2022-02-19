@@ -6,7 +6,7 @@ public class TestApollo {
     public static void main(String[] args) {
         //启动参数添加 -Denv=LPT
         System.setProperty("apollo.cluster", "test1");
-        
+
         //config instance is singleton for each namespace and is never null
         Config config = ConfigService.getConfig("component");
 

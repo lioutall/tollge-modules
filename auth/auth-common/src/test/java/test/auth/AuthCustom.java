@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.tollge.common.auth.AbstractAuth;
 import com.tollge.common.auth.Subject;
 import com.tollge.common.util.Const;
-import com.tollge.modules.auth.common.AuthUser;
+// import com.tollge.modules.auth.common.AuthUser;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -84,10 +84,10 @@ public class AuthCustom extends AbstractAuth {
             return;
         }
 
-        AuthUser user = new AuthUser();
-        user.setPrincipal(new JsonObject().put("username", username).put(Const.ID, 111));
-        user.appendPermissions(ImmutableSet.of("GET:/web/userInfo"));
-        resultHandler.handle(Future.succeededFuture(user));
+        // AuthUser user = new AuthUser();
+        // user.setPrincipal(new JsonObject().put("username", username).put(Const.ID, 111));
+        // user.appendPermissions(ImmutableSet.of("GET:/web/userInfo"));
+        // resultHandler.handle(Future.succeededFuture(user));
 
     }
 

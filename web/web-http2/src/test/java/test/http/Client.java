@@ -2,8 +2,7 @@ package test.http;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpVersion;
+import io.vertx.core.http.*;
 
 /*
  * @author <a href="http://tfox.org">Tim Fox</a>
@@ -26,10 +25,23 @@ public class Client extends AbstractVerticle {
         setProtocolVersion(HttpVersion.HTTP_2).
         setTrustAll(true);
 
-    vertx.createHttpClient(options
-    ).getNow(8443, "localhost", "/web/test/aaa", resp -> {
-      System.out.println("Got response " + resp.statusCode() + " with protocol " + resp.version());
-      resp.bodyHandler(body -> System.out.println("Got data " + body.toString("ISO-8859-1")));
+    vertx.createHttpClient(options).request(HttpMethod.GET, 8443, "localhost", "/web/test/aaa", ar1 -> {
+
+      if (ar1.succeeded()) {
+        HttpClientRequest request = ar1.result();
+
+        // 发送请求并处理响应
+        request.send("Hello World", ar -> {
+          if (ar.succeeded()) {
+            HttpClientResponse resp = ar.result();
+            System.out.println("Got response " + resp.statusCode() + " with protocol " + resp.version());
+            resp.bodyHandler(body -> System.out.println("Got data " + body.toString("ISO-8859-1")));
+          } else {
+            System.out.println("Something went wrong " + ar.cause().getMessage());
+          }
+        });
+      }
+
     });
   }
 }
