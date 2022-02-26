@@ -47,17 +47,20 @@ public class Tester {
                     HttpClientRequest request = ar1.result();
 
                     // 发送请求并处理响应
-                    request.send("Hello World", ar -> {
+                    request.send(ar -> {
                         if (ar.succeeded()) {
                             HttpClientResponse resp = ar.result();
-                            resp.handler(b -> System.out.println(b.toString()));
+                            resp.bodyHandler(b -> {
+                                System.out.println("a:" + b.toString());
+                                async.complete();
+                            });
                             context.assertEquals(200, resp.statusCode());
                         } else {
                             System.out.println("Something went wrong " + ar.cause().getMessage());
+                            async.complete();
                         }
                     });
                 }
-                async.complete();
             });
         });
 
