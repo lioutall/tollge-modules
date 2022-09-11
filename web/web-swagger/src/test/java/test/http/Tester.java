@@ -1,13 +1,7 @@
 package test.http;
 
 import com.tollge.MainVerticle;
-import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestOptions;
 import io.vertx.ext.unit.TestSuite;
 import io.vertx.ext.unit.report.ReportOptions;
@@ -25,7 +19,7 @@ public class Tester {
     @Test
     public void run() {
         TestOptions options = new TestOptions().addReporter(new ReportOptions().setTo("console"));
-        TestSuite suite = TestSuite.create("test - auth");
+        TestSuite suite = TestSuite.create("test - swagger");
         suite.before(ts -> {
             vertx = Vertx.vertx();
             vertx.deployVerticle(new MainVerticle(), ts.asyncAssertSuccess());
@@ -35,10 +29,10 @@ public class Tester {
             vertx.close(ts.asyncAssertSuccess());
         });
 
-        suite.test("web", context -> {
+        /*suite.test("web", context -> {
             Async async = context.async();
             HttpClient client = vertx.createHttpClient();
-            Future<HttpClientRequest> req = client.request(HttpMethod.GET, 8080, "localhost", "/web/test/testkey");
+            Future<HttpClientRequest> req = client.request(HttpMethod.GET, 8090, "localhost", "/web/test/testkey");
             req.onFailure(err -> context.fail(err.getMessage()));
             req.onComplete(ar1 -> {
                 if (ar1.succeeded()) {
@@ -60,7 +54,7 @@ public class Tester {
                     });
                 }
             });
-        });
+        });*/
 
         suite.run(options).await(100000);
 

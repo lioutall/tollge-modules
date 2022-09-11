@@ -1,18 +1,17 @@
 package com.tollge.modules.auth.common;
 
 import com.google.common.collect.ImmutableSet;
+import com.tollge.common.ResultFormat;
+import com.tollge.common.StatusCodeMsg;
+import com.tollge.common.auth.AbstractAuth;
+import com.tollge.common.auth.Subject;
+import com.tollge.common.util.MyVertx;
+import com.tollge.common.util.Properties;
 import io.netty.util.internal.StringUtil;
-import  com.tollge.common.ResultFormat;
-import  com.tollge.common.StatusCodeMsg;
-import  com.tollge.common.auth.AbstractAuth;
-import  com.tollge.common.auth.Subject;
-import  com.tollge.common.util.MyVertx;
-import  com.tollge.common.util.Properties;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
 

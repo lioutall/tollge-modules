@@ -3,8 +3,6 @@ package test.auth;
 import com.google.common.collect.ImmutableSet;
 import com.tollge.common.auth.AbstractAuth;
 import com.tollge.common.auth.Subject;
-import com.tollge.common.util.Const;
-// import com.tollge.modules.auth.common.AuthUser;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -42,6 +40,11 @@ public class AuthCustom extends AbstractAuth {
     public void removeSubject(String key, Handler<AsyncResult<Void>> resultHandler) {
         subjectCache.remove(key);
         resultHandler.handle(Future.succeededFuture());
+    }
+
+    @Override
+    public void refreshTime(String key) {
+
     }
 
     @Override

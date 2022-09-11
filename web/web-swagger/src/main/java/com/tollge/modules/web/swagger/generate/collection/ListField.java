@@ -1,0 +1,68 @@
+package com.tollge.modules.web.swagger.generate.collection;
+
+import com.tollge.modules.web.swagger.generate.ConverterService;
+import com.tollge.modules.web.swagger.generate.ObjectConverterException;
+import io.swagger.v3.oas.models.media.Schema;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class ListField implements CollectionField {
+
+  private static final String LIST_TYPE_NAME_PATTERN = "java.util.List<";
+
+  private final ConverterService converterService;
+
+  public ListField(ConverterService converterService) {
+    this.converterService = converterService;
+  }
+
+  @Override
+  public void addField(Field field, Schema properties)
+      throws ObjectConverterException {
+    Schema fieldProperties = new Schema<>();
+    fieldProperties.setType("array");
+    String fieldTypeName = field.getGenericType().getTypeName();
+    if (field.getGenericType() instanceof ParameterizedType) {
+      ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
+      Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+      if (actualTypeArguments.length == 1) {
+        String valueType = actualTypeArguments[0].getTypeName();
+        converterService.addItems(valueType, fieldProperties);
+      } else if (actualTypeArguments.length == 0) {
+        throw new ObjectConverterException(
+            String.format("Cannot convert from nested parametrised: %s", fieldTypeName));
+      } else {
+        throw new ObjectConverterException(
+            String.format("Cannot convert object field with type: %s", fieldTypeName));
+      }
+    } else {
+      throw new ObjectConverterException(
+          String.format("Cannot convert object field with type: %s", fieldTypeName));
+    }
+    properties.addProperties(field.getName(), fieldProperties);
+  }
+
+  @Override
+  public void addItem(String typeName, Schema properties)
+      throws ObjectConverterException {
+    String fieldTypeName =
+        typeName.substring(LIST_TYPE_NAME_PATTERN.length(), typeName.length() - 1);
+    properties.setType("array");
+    converterService.addItems(fieldTypeName, properties);
+  }
+
+  @Override
+  public void addItems(String typeName, Schema properties)
+      throws ObjectConverterException {
+    String fieldTypeName =
+        typeName.substring(LIST_TYPE_NAME_PATTERN.length(), typeName.length() - 1);
+    Schema fieldProperties = new Schema<>();
+    fieldProperties.setType("array");
+    converterService.addItems(fieldTypeName, fieldProperties);
+    properties.addProperties("items", fieldProperties);
+  }
+}

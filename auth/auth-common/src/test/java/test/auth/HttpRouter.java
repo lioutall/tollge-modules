@@ -6,9 +6,8 @@ import com.tollge.common.UFailureHandler;
 import com.tollge.common.annotation.Method;
 import com.tollge.common.annotation.mark.Path;
 import com.tollge.common.auth.Subject;
-import com.tollge.modules.web.http.Http;
 import com.tollge.common.verticle.AbstractRouter;
-import io.vertx.core.eventbus.Message;
+import com.tollge.modules.web.http.Http;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import lombok.NoArgsConstructor;
@@ -31,7 +30,7 @@ public class HttpRouter extends AbstractRouter {
 
     @Path(value = "/userInfo", method = Method.GET)
     public void userInfo(RoutingContext rct) {
-        sendBizWithUser("biz://tt/userInfo", rct);
+        sendBizWithUser(rct, "biz://tt/userInfo");
     }
 
 }

@@ -32,6 +32,11 @@ public class AuthDefault extends AbstractAuth {
     }
 
     @Override
+    public void refreshTime(String key) {
+
+    }
+
+    @Override
     public boolean clearSubjects() {
         return false;
     }

@@ -12,7 +12,7 @@
   </parent>
 
   <packaging>jar</packaging>
-  <artifactId>web-http</artifactId>
+  <artifactId>web-swagger</artifactId>
   <version>1.0.0-SNAPSHOT</version>
 
   <properties>
@@ -25,6 +25,7 @@
 
     <vertx.version>4.2.5</vertx.version>
     <junit-jupiter.version>5.7.0</junit-jupiter.version>
+    <swagger.version>2.1.13</swagger.version>
   </properties>
 
 
@@ -33,6 +34,24 @@
     <dependency>
       <groupId>com.tollge</groupId>
       <artifactId>tollge</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.tollge</groupId>
+      <artifactId>web-http</artifactId>
+      <version>${parent.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations</artifactId>
+      <version>${swagger.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-core</artifactId>
+      <version>${swagger.version}</version>
     </dependency>
 
     <dependency>
