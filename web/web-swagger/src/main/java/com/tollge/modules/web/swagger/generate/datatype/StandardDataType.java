@@ -15,6 +15,8 @@ public enum StandardDataType {
   BOOLEAN_WRAPPER("java.lang.Boolean"),
   BOOLEAN_PRIMITIVE("boolean"),
   LOCAL_DATE("java.time.LocalDate"),
+  LOCAL_DATE_TIME("java.time.LocalDateTime"),
+  DATE("java.util.Date"),
   OFFSET_DATE_TIME("java.time.OffsetDateTime");
 
   private final String typeName;

@@ -19,7 +19,7 @@ public class HttpRouter extends AbstractRouter {
         return sendBiz("biz://tt/one", key);
     }
 
-    @Path(value = "/test/one", method = Method.POST, description = "method描述2")
+    @Path(value = "/one", method = Method.POST, description = "method描述2")
     public AsyncResult<User> one(RoutingContext rct, @Body User user) {
         return sendBiz("biz://tt/one", user);
     }

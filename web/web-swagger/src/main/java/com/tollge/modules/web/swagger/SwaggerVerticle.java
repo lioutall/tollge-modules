@@ -1,9 +1,7 @@
 package com.tollge.modules.web.swagger;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.reflect.ClassPath;
 import com.tollge.common.ResultFormat;
 import com.tollge.common.TollgeException;
 import com.tollge.common.annotation.mark.Path;
@@ -31,10 +29,7 @@ import io.vertx.core.AbstractVerticle;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,17 +51,21 @@ public class SwaggerVerticle extends AbstractVerticle {
             return;
         }
 
+        log.info("tollge-swagger starting...");
+
         //todo swagger基本配置
 
+
         io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
-        int port = Properties.getInteger("application", "http.port");
+        int httpPort = Properties.getInteger("application", "http.port");
+        int swaggerPort = Properties.getInteger("application", "swagger.port");
 
         OpenAPI openAPIDoc = new OpenAPI();
         Info info = new Info();
         info.setTitle("Swagger");
         info.setVersion("1.0.0");
         openAPIDoc.setInfo(info);
-        List<Server> servers = Lists.newArrayList(new Server().url("http://" + ipUtil.getInetAddress().getHostAddress() + ":" + port + "/"));
+        List<Server> servers = Lists.newArrayList(new Server().url("http://" + ipUtil.getInetAddress().getHostAddress() + ":" + httpPort + "/"));
         openAPIDoc.setServers(servers);
 
         // 定义PathItem组
@@ -236,7 +235,7 @@ public class SwaggerVerticle extends AbstractVerticle {
                 // 实际返回的对象
                 String returnTypeName = method.getGenericReturnType().getTypeName();
                 returnTypeName = returnTypeName.substring(returnTypeName.indexOf("<") + 1, returnTypeName.length() - 1);
-                if (!modelMap.containsKey(returnTypeName)) {
+                if (!ConverterFactory.getInstance().isStandardDataType(returnTypeName) && !modelMap.containsKey(returnTypeName)) {
                     try {
                         Schema model = ConverterFactory.getInstance().convert(returnTypeName);
                         modelMap.put(returnTypeName, model);
@@ -246,7 +245,7 @@ public class SwaggerVerticle extends AbstractVerticle {
                 }
                 Schema refModel = new Schema<>();
                 refModel.$ref("#/components/schemas/" + returnTypeName);
-                responseModel.addProperties(ResultFormat.DATA, new Schema().type("integer").description("返回code 200-成功"));
+                responseModel.addProperties(ResultFormat.DATA, refModel);
 
                 mediaType.schema(responseModel);
                 responseContent.addMediaType("application/json", mediaType);
@@ -265,6 +264,8 @@ public class SwaggerVerticle extends AbstractVerticle {
 
         // Serve the Swagger JSON spec out on /swagger
         router.get("/swagger").handler(res ->  res.response().setStatusCode(200).end(Json.pretty(openAPIDoc)));
+        log.info("swagger服务监听端口:{}", swaggerPort);
+        vertx.createHttpServer().requestHandler(router).listen(swaggerPort);
     }
 
     private void checkHasSet(boolean hasSet, Class<?> c, Method method, java.lang.reflect.Parameter parameter) {
@@ -297,72 +298,6 @@ public class SwaggerVerticle extends AbstractVerticle {
         }
 
         return operation;
-    }
-
-    private MediaType fetchItem(PathParam pathParam, Class<?> parameterType) {
-        MediaType mediaType = new MediaType();
-        Schema schema = new Schema<>();
-        schema.setMaxLength(pathParam.maxLength());
-        schema.setMinLength(pathParam.minLength());
-        schema.setType(parameterType.getSimpleName());
-        schema.setName(parameterType.getSimpleName() + "!!!");
-        schema.setDescription(pathParam.description());
-        mediaType.schema(schema);
-        return mediaType;
-    }
-
-    private void mapParameters(Field field, Map<String, Object> map) {
-        Class type = field.getType();
-        Class componentType = field.getType().getComponentType();
-
-        if (isPrimitiveOrWrapper(type)) {
-            Schema primitiveSchema = new Schema();
-            primitiveSchema.type(field.getType().getSimpleName());
-            map.put(field.getName(), primitiveSchema);
-        } else {
-            HashMap<String, Object> subMap = new HashMap<>();
-
-            if(isPrimitiveOrWrapper(componentType)){
-                HashMap<String, Object> arrayMap = new HashMap<>();
-                arrayMap.put("type", componentType.getSimpleName() + "[]");
-                subMap.put("type", arrayMap);
-            } else {
-                subMap.put("$ref", "#/components/schemas/" + componentType.getSimpleName());
-            }
-
-            map.put(field.getName(), subMap);
-        }
-    }
-
-    private Boolean isPrimitiveOrWrapper(Type type){
-        return type.equals(Double.class) ||
-                type.equals(Float.class) ||
-                type.equals(Long.class) ||
-                type.equals(Integer.class) ||
-                type.equals(Short.class) ||
-                type.equals(Character.class) ||
-                type.equals(Byte.class) ||
-                type.equals(Boolean.class) ||
-                type.equals(double.class) ||
-                type.equals(float.class) ||
-                type.equals(long.class) ||
-                type.equals(int.class) ||
-                type.equals(short.class) ||
-                type.equals(char.class) ||
-                type.equals(boolean.class) ||
-                type.equals(byte.class) ||
-                type.equals(String.class);
-    }
-
-    public ImmutableSet<ClassPath.ClassInfo> getClassesInPackage(String pckgname) {
-        try {
-            ClassPath classPath = ClassPath.from(Thread.currentThread().getContextClassLoader());
-            ImmutableSet<ClassPath.ClassInfo> classes = classPath.getTopLevelClasses(pckgname);
-            return classes;
-
-        } catch (Exception e) {
-            return null;
-        }
     }
 
 }

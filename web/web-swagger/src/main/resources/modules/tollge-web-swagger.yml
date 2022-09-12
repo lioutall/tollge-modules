@@ -1,2 +1,2 @@
 verticles:
-  swagger: com.tollge.modules.web.swagger.SwaggerVerticle
+  swagger: com.tollge.modules.web.swagger.SwaggerVerticle,1

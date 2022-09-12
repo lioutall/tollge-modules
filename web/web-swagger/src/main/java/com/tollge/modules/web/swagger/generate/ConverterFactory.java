@@ -8,8 +8,6 @@ import com.tollge.modules.web.swagger.generate.datatype.StandardField;
 import io.swagger.v3.oas.models.media.Schema;
 
 import java.lang.reflect.Field;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * 源码地址: https://github.com/sitMCella/openapi-3-object-converter
@@ -55,6 +53,10 @@ public class ConverterFactory implements ConverterService {
     return schemaDefinition;
   }
 
+  public boolean isStandardDataType(String typeName) {
+    return standardDataTypes.isStandardDataType(typeName);
+  }
+
   @Override
   public void convert(String typeName, Schema properties) throws ObjectConverterException {
     if (standardDataTypes.isStandardDataType(typeName)) {
@@ -71,8 +73,7 @@ public class ConverterFactory implements ConverterService {
   }
 
   @Override
-  public void addField(Field field, String typeName, Schema properties)
-      throws ObjectConverterException {
+  public void addField(Field field, String typeName, Schema properties) throws ObjectConverterException {
     if (standardDataTypes.isStandardDataType(typeName)) {
       StandardField standardField = standardDataTypes.getStandardField(typeName);
       standardField.addField(field, properties);

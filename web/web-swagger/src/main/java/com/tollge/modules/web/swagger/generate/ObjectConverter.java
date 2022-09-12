@@ -17,12 +17,10 @@ public class ObjectConverter {
     try {
       Class<?> clazz = Class.forName(typeName);
       objectProperties.setType("object");
-      Schema properties = new Schema<>();
       for (Field field : clazz.getDeclaredFields()) {
         String fieldTypeName = field.getType().getCanonicalName();
-        converterService.addField(field, fieldTypeName, properties);
+        converterService.addField(field, fieldTypeName, objectProperties);
       }
-      objectProperties.addProperties("properties", properties);
     } catch (ClassNotFoundException e) {
       throw new ObjectConverterException(
           String.format("Cannot convert class with name: %s", typeName), e);

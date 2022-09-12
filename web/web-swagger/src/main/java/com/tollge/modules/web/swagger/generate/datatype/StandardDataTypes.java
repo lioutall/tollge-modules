@@ -36,6 +36,8 @@ public class StandardDataTypes {
     standardDataTypes.put(StandardDataType.BOOLEAN_WRAPPER, booleanField);
     standardDataTypes.put(StandardDataType.BOOLEAN_PRIMITIVE, booleanField);
     standardDataTypes.put(StandardDataType.LOCAL_DATE, dateField);
+    standardDataTypes.put(StandardDataType.LOCAL_DATE_TIME, dateTimeField);
+    standardDataTypes.put(StandardDataType.DATE, dateField);
     standardDataTypes.put(StandardDataType.OFFSET_DATE_TIME, dateTimeField);
     this.standardDataTypes = Collections.unmodifiableMap(standardDataTypes);
   }

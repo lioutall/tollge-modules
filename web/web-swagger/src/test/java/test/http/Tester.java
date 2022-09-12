@@ -2,61 +2,29 @@ package test.http;
 
 import com.tollge.MainVerticle;
 import io.vertx.core.Vertx;
-import io.vertx.ext.unit.TestOptions;
-import io.vertx.ext.unit.TestSuite;
-import io.vertx.ext.unit.report.ReportOptions;
-import org.junit.Test;
-
-import java.time.LocalDateTime;
+import io.vertx.junit5.Timeout;
+import io.vertx.junit5.VertxExtension;
+import io.vertx.junit5.VertxTestContext;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * @author toyer
  * @date 2018-10-23
  */
+@ExtendWith(VertxExtension.class)
 public class Tester {
-    private Vertx vertx;
 
-    @Test
-    public void run() {
-        TestOptions options = new TestOptions().addReporter(new ReportOptions().setTo("console"));
-        TestSuite suite = TestSuite.create("test - swagger");
-        suite.before(ts -> {
-            vertx = Vertx.vertx();
-            vertx.deployVerticle(new MainVerticle(), ts.asyncAssertSuccess());
-        });
-        suite.after(ts -> {
-            System.out.println("server close:"+ LocalDateTime.now());
-            vertx.close(ts.asyncAssertSuccess());
-        });
+    // Deploy the verticle and execute the test methods when the verticle
+    // is successfully deployed
+    @BeforeEach
+    void deploy_verticle(Vertx vertx, VertxTestContext testContext) {
+        vertx.deployVerticle(new MainVerticle(), testContext.succeedingThenComplete());
+    }
 
-        /*suite.test("web", context -> {
-            Async async = context.async();
-            HttpClient client = vertx.createHttpClient();
-            Future<HttpClientRequest> req = client.request(HttpMethod.GET, 8090, "localhost", "/web/test/testkey");
-            req.onFailure(err -> context.fail(err.getMessage()));
-            req.onComplete(ar1 -> {
-                if (ar1.succeeded()) {
-                    HttpClientRequest request = ar1.result();
-
-                    // 发送请求并处理响应
-                    request.send(ar -> {
-                        if (ar.succeeded()) {
-                            HttpClientResponse resp = ar.result();
-                            resp.bodyHandler(b -> {
-                                System.out.println("a:" + b.toString());
-                                async.complete();
-                            });
-                            context.assertEquals(200, resp.statusCode());
-                        } else {
-                            System.out.println("Something went wrong " + ar.cause().getMessage());
-                            async.complete();
-                        }
-                    });
-                }
-            });
-        });*/
-
-        suite.run(options).await(100000);
-
+    @RepeatedTest(1)
+    @Timeout(600000)
+    void http_server_check_response(Vertx vertx, VertxTestContext testContext) {
     }
 }
