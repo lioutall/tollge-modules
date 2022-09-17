@@ -104,13 +104,13 @@ public class SwaggerVerticle extends AbstractVerticle {
                             PathParam param = (PathParam)annotation;
                             Parameter parameter = new Parameter();
                             parameter.setName(param.value());
+                            parameter.setIn("path");
                             parameter.setDescription(param.description());
 
-                            Schema schema = new Schema<>();
-                            schema.setType(parameterTypes[i].getSimpleName());
-                            schema.setMinLength(param.minLength());
-                            schema.setMaxLength(param.maxLength());
-                            schema.setPattern(param.regex());
+                            Schema schema = ConverterFactory.getInstance().convert(parameterTypes[i].getName());
+                            schema.setMinLength(param.minLength()==-1?null:param.minLength());
+                            schema.setMaxLength(param.maxLength()==-1?null:param.maxLength());
+                            schema.setPattern("".equals(param.regex())?null:param.regex());
                             parameter.setSchema(schema);
                             parameter.setRequired(param.required());
                             operation.addParametersItem(parameter);
@@ -121,84 +121,94 @@ public class SwaggerVerticle extends AbstractVerticle {
                             QueryParam param = (QueryParam)annotation;
                             Parameter parameter = new Parameter();
                             parameter.setName(param.value());
+                            parameter.setIn("query");
                             parameter.setDescription(param.description());
 
-                            Schema schema = new Schema<>();
-                            schema.setType(parameterTypes[i].getSimpleName());
-                            schema.setMinLength(param.minLength());
-                            schema.setMaxLength(param.maxLength());
-                            schema.setPattern(param.regex());
+                            Schema schema = ConverterFactory.getInstance().convert(parameterTypes[i].getName());
+                            schema.setMinLength(param.minLength()==-1?null:param.minLength());
+                            schema.setMaxLength(param.maxLength()==-1?null:param.maxLength());
+                            schema.setPattern("".equals(param.regex())?null:param.regex());
                             parameter.setSchema(schema);
                             parameter.setRequired(param.required());
                             operation.addParametersItem(parameter);
+                            hasSet = true;
                         }
                         if (annotation.annotationType() == HeaderParam.class) {
                             checkHasSet(hasSet, c, method, parameters[i]);
                             HeaderParam param = (HeaderParam)annotation;
                             Parameter parameter = new Parameter();
                             parameter.setName(param.value());
+                            parameter.setIn("header");
                             parameter.setDescription(param.description());
 
-                            Schema schema = new Schema<>();
-                            schema.setType(parameterTypes[i].getSimpleName());
-                            schema.setMinLength(param.minLength());
-                            schema.setMaxLength(param.maxLength());
-                            schema.setPattern(param.regex());
+                            Schema schema = ConverterFactory.getInstance().convert(parameterTypes[i].getName());
+                            schema.setMinLength(param.minLength()==-1?null:param.minLength());
+                            schema.setMaxLength(param.maxLength()==-1?null:param.maxLength());
+                            schema.setPattern("".equals(param.regex())?null:param.regex());
                             parameter.setSchema(schema);
                             parameter.setRequired(param.required());
                             operation.addParametersItem(parameter);
-                        }
-                        if (annotation.annotationType() == FormParam.class) {
-                            checkHasSet(hasSet, c, method, parameters[i]);
-                            FormParam param = (FormParam)annotation;
-                            Parameter parameter = new Parameter();
-                            parameter.setName(param.value());
-                            parameter.setDescription(param.description());
-
-                            Schema schema = new Schema<>();
-                            schema.setType(parameterTypes[i].getSimpleName());
-                            schema.setMinLength(param.minLength());
-                            schema.setMaxLength(param.maxLength());
-                            schema.setPattern(param.regex());
-                            parameter.setSchema(schema);
-                            parameter.setRequired(param.required());
-                            operation.addParametersItem(parameter);
+                            hasSet = true;
                         }
                         if (annotation.annotationType() == CookieParam.class) {
                             checkHasSet(hasSet, c, method, parameters[i]);
                             CookieParam param = (CookieParam)annotation;
                             Parameter parameter = new Parameter();
                             parameter.setName(param.value());
+                            parameter.setIn("cookie");
                             parameter.setDescription(param.description());
 
-                            Schema schema = new Schema<>();
-                            schema.setType(parameterTypes[i].getSimpleName());
-                            schema.setMinLength(param.minLength());
-                            schema.setMaxLength(param.maxLength());
-                            schema.setPattern(param.regex());
+                            Schema schema = ConverterFactory.getInstance().convert(parameterTypes[i].getName());
+                            schema.setMinLength(param.minLength()==-1?null:param.minLength());
+                            schema.setMaxLength(param.maxLength()==-1?null:param.maxLength());
+                            schema.setPattern("".equals(param.regex())?null:param.regex());
                             parameter.setSchema(schema);
                             parameter.setRequired(param.required());
                             operation.addParametersItem(parameter);
+                            hasSet = true;
+                        }
+                        if (annotation.annotationType() == FormParam.class) {
+                            checkHasSet(hasSet, c, method, parameters[i]);
+
+                            FormParam param = (FormParam)annotation;
+                            RequestBody requestBody = getRequestBody(operation);
+                            Schema<Object> objectSchema = getObjectSchema(requestBody);
+
+                            Schema schema = ConverterFactory.getInstance().convert(parameterTypes[i].getName());
+                            schema.setMinLength(param.minLength()==-1?null:param.minLength());
+                            schema.setMaxLength(param.maxLength()==-1?null:param.maxLength());
+                            schema.setPattern("".equals(param.regex())?null:param.regex());
+                            schema.setDescription(param.description());
+                            objectSchema.addProperties(param.value(), schema);
+                            if (param.required()) {
+                                objectSchema.addRequiredItem(param.value());
+                            }
+
+                            hasSet = true;
                         }
                         if (annotation.annotationType() == FileParam.class) {
                             checkHasSet(hasSet, c, method, parameters[i]);
                             FileParam param = (FileParam)annotation;
-                            Parameter parameter = new Parameter();
-                            parameter.setName(param.value());
-                            parameter.setDescription(param.description());
 
-                            Schema schema = new Schema<>();
-                            schema.setType(parameterTypes[i].getSimpleName());
-                            parameter.setSchema(schema);
-                            parameter.setRequired(param.required());
-                            operation.addParametersItem(parameter);
+                            RequestBody requestBody = getRequestBody(operation);
+                            Schema<Object> objectSchema = getObjectSchema(requestBody);
+
+                            Schema schema = new Schema();
+                            schema.setType("string");
+                            schema.setFormat("binary");
+                            schema.setDescription(param.description());
+                            objectSchema.addProperties(param.value(), schema);
+                            if (param.required()) {
+                                objectSchema.addRequiredItem(param.value());
+                            }
+                            hasSet = true;
                         }
 
                         // 解析body
                         if(annotation.annotationType() == Body.class) {
                             checkHasSet(hasSet, c, method, parameters[i]);
 
-                            RequestBody requestBody = new RequestBody();
+                            RequestBody requestBody = getRequestBody(operation);
                             Content requestContext = new Content();
                             MediaType mediaType = new MediaType();
 
@@ -216,7 +226,6 @@ public class SwaggerVerticle extends AbstractVerticle {
 
                             requestContext.addMediaType("application/json", mediaType);
                             requestBody.setContent(requestContext);
-                            operation.setRequestBody(requestBody);
                         }
                     }
                 }
@@ -266,6 +275,30 @@ public class SwaggerVerticle extends AbstractVerticle {
         router.get("/swagger").handler(res ->  res.response().setStatusCode(200).end(Json.pretty(openAPIDoc)));
         log.info("swagger服务监听端口:{}", swaggerPort);
         vertx.createHttpServer().requestHandler(router).listen(swaggerPort);
+    }
+
+    private Schema<Object> getObjectSchema(RequestBody requestBody) {
+        String key = "multipart/form-data";
+        if (requestBody.getContent() != null && requestBody.getContent().get(key) != null) {
+            return requestBody.getContent().get(key).getSchema();
+        }
+
+        Content requestContext = new Content();
+        MediaType mediaType = new MediaType();
+        Schema<Object> objectSchema = new Schema<>();
+        objectSchema.setType("object");
+        mediaType.schema(objectSchema);
+        requestBody.setContent(requestContext);
+        requestContext.addMediaType(key, mediaType);
+
+        return objectSchema;
+    }
+
+    private RequestBody getRequestBody(Operation operation) {
+        if (operation.getRequestBody() == null) {
+            operation.setRequestBody(new RequestBody());
+        }
+        return operation.getRequestBody();
     }
 
     private void checkHasSet(boolean hasSet, Class<?> c, Method method, java.lang.reflect.Parameter parameter) {
