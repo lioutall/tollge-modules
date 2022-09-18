@@ -24,6 +24,9 @@ public class MapField implements CollectionField {
       throws ObjectConverterException {
     Schema fieldProperties = new Schema<>();
     fieldProperties.setType("object");
+    io.swagger.v3.oas.annotations.media.Schema schema = field.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+    fieldProperties.setTitle(schema == null ? null : schema.title());
+    fieldProperties.setDescription(schema == null ? null : schema.description());
     Schema additionalProperties = new Schema<>();
     String fieldTypeName = field.getGenericType().getTypeName();
     if (field.getGenericType() instanceof ParameterizedType) {

@@ -22,8 +22,7 @@ public class ConverterFactory implements ConverterService {
 
   private ConverterFactory() {
     if (converterFactory != null) {
-      throw new RuntimeException(
-          "Use getInstance() method to get the single instance of this class");
+      throw new RuntimeException("Use getInstance() method to get the single instance of this class");
     }
     objectConverter = new ObjectConverter(this);
     collectionDataTypes = new CollectionDataTypes(this);

@@ -17,6 +17,9 @@ public class ObjectConverter {
     try {
       Class<?> clazz = Class.forName(typeName);
       objectProperties.setType("object");
+      io.swagger.v3.oas.annotations.media.Schema schema = clazz.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+      objectProperties.setTitle(schema == null ? null : schema.title());
+      objectProperties.setDescription(schema == null ? null : schema.description());
       for (Field field : clazz.getDeclaredFields()) {
         String fieldTypeName = field.getType().getCanonicalName();
         converterService.addField(field, fieldTypeName, objectProperties);

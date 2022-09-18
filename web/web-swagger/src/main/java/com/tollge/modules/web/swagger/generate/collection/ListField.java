@@ -7,8 +7,6 @@ import io.swagger.v3.oas.models.media.Schema;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class ListField implements CollectionField {
 
@@ -25,6 +23,9 @@ public class ListField implements CollectionField {
       throws ObjectConverterException {
     Schema fieldProperties = new Schema<>();
     fieldProperties.setType("array");
+    io.swagger.v3.oas.annotations.media.Schema schema = field.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+    fieldProperties.setTitle(schema == null ? null : schema.title());
+    fieldProperties.setDescription(schema == null ? null : schema.description());
     String fieldTypeName = field.getGenericType().getTypeName();
     if (field.getGenericType() instanceof ParameterizedType) {
       ParameterizedType parameterizedType = (ParameterizedType) field.getGenericType();
