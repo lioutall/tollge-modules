@@ -1,7 +1,6 @@
 application:
   context.path:
   http.port: 8888
-  swagger.port: 9999
   baseScan: test.http
 
 # just for test
@@ -10,3 +9,4 @@ verticles:
   swagger: com.tollge.modules.web.swagger.SwaggerVerticle,1
 swagger:
   enable: true
+  port: 9999

@@ -58,7 +58,7 @@ public class SwaggerVerticle extends AbstractVerticle {
 
         io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
         int httpPort = Properties.getInteger("application", "http.port");
-        int swaggerPort = Properties.getInteger("application", "swagger.port");
+        int swaggerPort = Properties.getInteger("swagger", "port");
 
         OpenAPI openAPIDoc = new OpenAPI();
         Info info = new Info();
