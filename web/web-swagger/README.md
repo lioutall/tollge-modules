@@ -13,12 +13,12 @@ maven
 <dependency>
     <groupId>com.tollge.modules</groupId>
     <artifactId>web-swagger</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
 Gradle
 ```
-compile 'com.tollge.modules:web-swagger:0.1.0'
+compile 'com.tollge.modules:web-swagger:0.1.0-SNAPSHOT'
 ```
 
 #### User Guide

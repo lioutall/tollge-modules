@@ -22,6 +22,6 @@ compile 'com.tollge.modules:web-swagger:0.1.0-SNAPSHOT'
 
 #### 用户指导
 
-1. 增加依赖
+1. 增加依赖, 配置开关(swagger.enable)开启, 配置监听端口(swagger.port)
 2. Serve the Swagger JSON spec out on /swagger
 
