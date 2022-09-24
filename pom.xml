@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.tollge</groupId>
+  <artifactId>tollge-modules</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+
+  <packaging>pom</packaging>
+
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+    <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+    <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
+    <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
+
+    <vertx.version>4.3.3</vertx.version>
+    <junit-jupiter.version>5.7.0</junit-jupiter.version>
+  </properties>
+
+  <modules>
+    <module>/auth/auth-common</module>
+    <module>/data/curd-reactive-pg</module>
+    <module>/data/curd-vertx</module>
+    <module>microservices/microservices-eureka-client</module>
+    <module>microservices/microservices-eureka-server</module>
+    <module>web/web-http</module>
+    <module>web/web-swagger</module>
+    <module>web/web-http2</module>
+    <module>oss/oss-qiniu</module>
+    <module>sms/sms-dayu</module>
+    <module>wechat/wechat-gzh</module>
+  </modules>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-stack-depchain</artifactId>
+        <version>${vertx.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>com.tollge</groupId>
+        <artifactId>tollge</artifactId>
+        <version>0.9.0</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+ 
+
+  <dependencies>
+  </dependencies>
+
+
+
+</project>

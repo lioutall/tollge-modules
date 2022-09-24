@@ -1,6 +1,6 @@
 application:
   context.path:
-  http.port: 8090
+  http.port: 8080
   baseScan: test.http
 
 # just for test

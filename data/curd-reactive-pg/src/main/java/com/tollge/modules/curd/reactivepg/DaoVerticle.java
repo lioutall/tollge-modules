@@ -321,13 +321,13 @@ public class DaoVerticle extends AbstractDao {
                 // Begin the transaction
                 PgTransaction tx = conn.begin();
 
-                Future<PgRowSet> updates = Future.future(Future::complete);
+                Future<PgRowSet> updates = Future.future(c->log.info("create PgRowSet Future"));
 
                 for (SqlAndParams sqlParam : sqlAndParamsList) {
                     final SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
                     updates = updates.compose(r -> Future.<PgRowSet>future(
                             ar -> conn.preparedQuery(sqlSession.getSql(), jsonArray2Tuple(sqlSession.getParams()), ar)
-                    ).setHandler(a -> {
+                    ).onComplete(a -> {
                         if(a.succeeded()) {
                             if ("0".equals(ignore)){
                                 PgIterator ite = a.result().iterator();
@@ -343,7 +343,7 @@ public class DaoVerticle extends AbstractDao {
                     }));
                 }
 
-                updates.setHandler(res -> {
+                updates.onComplete(res -> {
                     if(res.succeeded()) {
                         // Commit the transaction
                         tx.commit(ar -> {

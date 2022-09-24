@@ -11,6 +11,7 @@ import com.tollge.sql.SqlSession;
 import com.tollge.sql.SqlTemplate;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -289,14 +290,15 @@ public class DaoVerticle extends AbstractDao {
                 // 设置成手动提交
                 conn.setAutoCommit(false, r -> {
                     if(r.succeeded()) {
-                        Future<UpdateResult> deals = Future.future(Future::complete);
+                        Promise<UpdateResult> promise = Promise.promise();
+                        Future<UpdateResult> deals = promise.future();
 
                         for (SqlAndParams sqlParam : sqlAndParamsList) {
                             SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
 
                             deals = deals.compose(deal -> Future.<UpdateResult>future(f->{
                                 conn.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), f);
-                            }).setHandler(a -> {
+                            }).onComplete(a -> {
                                 if (a.succeeded()) {
                                     if ("0".equals(ignore)){
                                         int result = a.result().getUpdated();
@@ -310,7 +312,7 @@ public class DaoVerticle extends AbstractDao {
                             }));
                         }
 
-                        deals.setHandler(res -> {
+                        deals.onComplete(res -> {
                             if(res.succeeded()) {
                                 conn.commit(commitR -> {
                                     if(commitR.succeeded()) {

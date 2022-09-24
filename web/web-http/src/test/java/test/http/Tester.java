@@ -1,11 +1,12 @@
 package test.http;
 
 import com.tollge.MainVerticle;
-import com.tollge.common.util.Const;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.json.JsonObject;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestOptions;
 import io.vertx.ext.unit.TestSuite;
@@ -37,14 +38,28 @@ public class Tester {
         suite.test("web", context -> {
             Async async = context.async();
             HttpClient client = vertx.createHttpClient();
-            HttpClientRequest req = client.get(8090, "localhost", "/web/test/testkey");
-            req.exceptionHandler(err -> context.fail(err.getMessage()));
-            req.handler(resp -> {
-                resp.handler(b -> System.out.println(b.toString()));
-                context.assertEquals(200, resp.statusCode());
-                async.complete();
+            Future<HttpClientRequest> req = client.request(HttpMethod.GET, 8080, "localhost", "/web/test/testkey");
+            req.onFailure(err -> context.fail(err.getMessage()));
+            req.onComplete(ar1 -> {
+                if (ar1.succeeded()) {
+                    HttpClientRequest request = ar1.result();
+
+                    // 发送请求并处理响应
+                    request.send(ar -> {
+                        if (ar.succeeded()) {
+                            HttpClientResponse resp = ar.result();
+                            resp.bodyHandler(b -> {
+                                System.out.println("a:" + b.toString());
+                                async.complete();
+                            });
+                            context.assertEquals(200, resp.statusCode());
+                        } else {
+                            System.out.println("Something went wrong " + ar.cause().getMessage());
+                            async.complete();
+                        }
+                    });
+                }
             });
-            req.end();
         });
 
         suite.run(options).await(100000);

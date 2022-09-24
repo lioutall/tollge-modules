@@ -6,3 +6,4 @@ application:
 # just for test
 verticles:
   eurekaServer: com.tollge.modules.microservices.eureka.server.EurekaServerVerticle,1
+  http: com.tollge.modules.web.http.HttpVerticle
