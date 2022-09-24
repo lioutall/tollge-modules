@@ -20,26 +20,30 @@ public class CollectionDataTypes {
   }
 
   public boolean isCollectionDataType(String typeName) {
-    return CollectionDataType.isCollectionDataType(typeName);
+    // 去除泛型
+    String originalReturnTypeName = typeName.contains("<") ? typeName.substring(0, typeName.indexOf("<")) : typeName;
+    return CollectionDataType.isCollectionDataType(originalReturnTypeName);
   }
 
   public CollectionField getCollectionField(String typeName) throws ObjectConverterException {
-    CollectionDataType collectionDataType = getCollectionDataType(typeName);
+    // 去除泛型
+    String originalReturnTypeName = typeName.contains("<") ? typeName.substring(0, typeName.indexOf("<")) : typeName;
+    CollectionDataType collectionDataType = getCollectionDataType(originalReturnTypeName);
     CollectionField collectionField = collectionDataTypes.get(collectionDataType);
     if (collectionField == null) {
       throw new ObjectConverterException(
-          String.format("Cannot find collection field from type name: %s", typeName));
+              String.format("Cannot find collection field from type name: %s", typeName));
     }
     return collectionField;
   }
 
   private CollectionDataType getCollectionDataType(String typeName)
-      throws ObjectConverterException {
+          throws ObjectConverterException {
     try {
       return CollectionDataType.fromTypeName(typeName);
     } catch (CollectionDataTypeNotFoundException e) {
       throw new ObjectConverterException(
-          String.format("Cannot find collection data type from type name: %s", typeName), e);
+              String.format("Cannot find collection data type from type name: %s", typeName), e);
     }
   }
 }

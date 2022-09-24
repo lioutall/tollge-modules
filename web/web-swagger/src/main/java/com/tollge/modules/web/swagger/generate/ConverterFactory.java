@@ -1,6 +1,7 @@
 package com.tollge.modules.web.swagger.generate;
 
 
+import com.google.common.collect.Maps;
 import com.tollge.modules.web.swagger.generate.collection.CollectionDataTypes;
 import com.tollge.modules.web.swagger.generate.collection.CollectionField;
 import com.tollge.modules.web.swagger.generate.datatype.StandardDataTypes;
@@ -8,6 +9,7 @@ import com.tollge.modules.web.swagger.generate.datatype.StandardField;
 import io.swagger.v3.oas.models.media.Schema;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 
 /**
  * 源码地址: https://github.com/sitMCella/openapi-3-object-converter
@@ -20,6 +22,9 @@ public class ConverterFactory implements ConverterService {
   private final CollectionDataTypes collectionDataTypes;
   private final StandardDataTypes standardDataTypes;
 
+  // 定义Model组
+  private Map<String, Schema> modelMap = null;
+
   private ConverterFactory() {
     if (converterFactory != null) {
       throw new RuntimeException("Use getInstance() method to get the single instance of this class");
@@ -30,9 +35,9 @@ public class ConverterFactory implements ConverterService {
   }
 
   ConverterFactory(
-      ObjectConverter objectConverter,
-      CollectionDataTypes collectionDataTypes,
-      StandardDataTypes standardDataTypes) {
+          ObjectConverter objectConverter,
+          CollectionDataTypes collectionDataTypes,
+          StandardDataTypes standardDataTypes) {
     this.objectConverter = objectConverter;
     this.collectionDataTypes = collectionDataTypes;
     this.standardDataTypes = standardDataTypes;
@@ -41,6 +46,7 @@ public class ConverterFactory implements ConverterService {
   public static ConverterFactory getInstance() {
     if (converterFactory == null) {
       converterFactory = new ConverterFactory();
+      converterFactory.modelMap = Maps.newHashMap();
     }
     return converterFactory;
   }
@@ -68,7 +74,7 @@ public class ConverterFactory implements ConverterService {
       collectionField.addItem(typeName, properties);
       return;
     }
-    objectConverter.convertObject(typeName, properties);
+    objectConverter.convertObject(modelMap, typeName, properties);
   }
 
   @Override
@@ -95,6 +101,11 @@ public class ConverterFactory implements ConverterService {
       standardDataTypes.addItems(typeName, properties);
       return;
     }
-    objectConverter.addItems(typeName, properties);
+
+    objectConverter.convertObject(modelMap, typeName, properties);
+  }
+
+  public Map<String, Schema> getModelMap(){
+    return modelMap;
   }
 }

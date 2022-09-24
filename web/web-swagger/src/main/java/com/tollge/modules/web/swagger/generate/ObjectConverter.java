@@ -3,6 +3,7 @@ package com.tollge.modules.web.swagger.generate;
 import io.swagger.v3.oas.models.media.Schema;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 
 public class ObjectConverter {
 
@@ -12,28 +13,30 @@ public class ObjectConverter {
     this.converterService = converterService;
   }
 
-  public void convertObject(String typeName, Schema objectProperties)
-      throws ObjectConverterException {
+  public void convertObject(Map<String, Schema> modelMap, String typeName, Schema refModel)
+          throws ObjectConverterException {
     try {
-      Class<?> clazz = Class.forName(typeName);
-      objectProperties.setType("object");
-      io.swagger.v3.oas.annotations.media.Schema schema = clazz.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
-      objectProperties.setTitle(schema == null ? null : schema.title());
-      objectProperties.setDescription(schema == null ? null : schema.description());
-      for (Field field : clazz.getDeclaredFields()) {
-        String fieldTypeName = field.getType().getCanonicalName();
-        converterService.addField(field, fieldTypeName, objectProperties);
+      // type已经构造过
+      if(modelMap.containsKey(typeName)) {
+        refModel.$ref("#/components/schemas/" + typeName);
+      } else {
+        Schema model = new Schema<>();
+        Class<?> clazz = Class.forName(typeName);
+        io.swagger.v3.oas.annotations.media.Schema schema = clazz.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+        model.setTitle(schema == null ? null : schema.title());
+        model.setDescription(schema == null ? null : schema.description());
+        for (Field field : clazz.getDeclaredFields()) {
+          String fieldTypeName = field.getType().getCanonicalName();
+          converterService.addField(field, fieldTypeName, model);
+        }
+        refModel.$ref("#/components/schemas/" + typeName);
+        modelMap.put(typeName, model);
       }
+
     } catch (ClassNotFoundException e) {
       throw new ObjectConverterException(
-          String.format("Cannot convert class with name: %s", typeName), e);
+              String.format("Cannot convert class with name: %s", typeName), e);
     }
   }
 
-  public void addItems(String typeName, Schema properties)
-      throws ObjectConverterException {
-    Schema objectProperties = new Schema<>();
-    convertObject(typeName, objectProperties);
-    properties.addProperties("items", objectProperties);
-  }
 }

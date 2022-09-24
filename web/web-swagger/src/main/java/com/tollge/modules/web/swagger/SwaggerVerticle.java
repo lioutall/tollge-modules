@@ -71,9 +71,6 @@ public class SwaggerVerticle extends AbstractVerticle {
         // 定义PathItem组
         Map<String, PathItem> pathItemMap = Maps.newHashMap();
 
-        // 定义Model组
-        Map<String, Schema> modelMap = Maps.newHashMap();
-
         // 找到所有http router
         Set<Class<?>> set = ReflectionUtil.getClassesWithAnnotated(Http.class);
         for (Class<?> c : set) {
@@ -212,10 +209,9 @@ public class SwaggerVerticle extends AbstractVerticle {
                             Content requestContext = new Content();
                             MediaType mediaType = new MediaType();
 
-                            if (!modelMap.containsKey(parameterTypes[i].getName())) {
+                            if (!ConverterFactory.getInstance().getModelMap().containsKey(parameterTypes[i].getName())) {
                                 try {
                                     Schema model = ConverterFactory.getInstance().convert(parameterTypes[i].getName());
-                                    modelMap.put(parameterTypes[i].getName(), model);
                                 } catch (ObjectConverterException e) {
                                     throw new TollgeException("swagger生成schema失败:" + c.getName() + "." + method.getName() + "." + parameters[i].getName());
                                 }
@@ -237,24 +233,15 @@ public class SwaggerVerticle extends AbstractVerticle {
                 MediaType mediaType = new MediaType();
                 Schema responseModel = new Schema<>();
 
-                responseModel.addProperties(ResultFormat.CODE, new Schema().type("integer").description("返回code 200-成功"));
-                responseModel.addProperties(ResultFormat.SUCCESS, new Schema().type("boolean").description("返回是否成功"));
-                responseModel.addProperties(ResultFormat.MESSAGE, new Schema().type("string").description("返回信息"));
+                responseModel.addProperties(ResultFormat.CODE, new Schema().type("integer").description("返回code 200-成功").example(200));
+                responseModel.addProperties(ResultFormat.SUCCESS, new Schema().type("boolean").description("返回是否成功").example(true));
+                responseModel.addProperties(ResultFormat.MESSAGE, new Schema().type("string").description("返回信息").example("成功"));
 
                 // 实际返回的对象
                 String returnTypeName = method.getGenericReturnType().getTypeName();
                 returnTypeName = returnTypeName.substring(returnTypeName.indexOf("<") + 1, returnTypeName.length() - 1);
-                if (!ConverterFactory.getInstance().isStandardDataType(returnTypeName) && !modelMap.containsKey(returnTypeName)) {
-                    try {
-                        Schema model = ConverterFactory.getInstance().convert(returnTypeName);
-                        modelMap.put(returnTypeName, model);
-                    } catch (ObjectConverterException e) {
-                        throw new TollgeException("swagger生成schema失败:" + c.getName() + "." + method.getName() + "." + returnTypeName);
-                    }
-                }
-                Schema refModel = new Schema<>();
-                refModel.$ref("#/components/schemas/" + returnTypeName);
-                responseModel.addProperties(ResultFormat.DATA, refModel);
+                Schema model = ConverterFactory.getInstance().convert(returnTypeName);
+                responseModel.addProperties(ResultFormat.DATA, model);
 
                 mediaType.schema(responseModel);
                 responseContent.addMediaType("application/json", mediaType);
@@ -268,7 +255,7 @@ public class SwaggerVerticle extends AbstractVerticle {
 
         // 设置components
         Components components = new Components();
-        components.setSchemas(modelMap);
+        components.setSchemas(ConverterFactory.getInstance().getModelMap());
         openAPIDoc.components(components);
 
         // Serve the Swagger JSON spec out on /swagger
