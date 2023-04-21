@@ -3,6 +3,7 @@ package test.http;
 import com.tollge.MainVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
@@ -27,7 +28,7 @@ public class Tester {
         TestOptions options = new TestOptions().addReporter(new ReportOptions().setTo("console"));
         TestSuite suite = TestSuite.create("test - auth");
         suite.before(ts -> {
-            vertx = Vertx.vertx();
+            vertx = Vertx.vertx(new VertxOptions().setPreferNativeTransport(true));
             vertx.deployVerticle(new MainVerticle(), ts.asyncAssertSuccess());
         });
         suite.after(ts -> {

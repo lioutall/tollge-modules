@@ -259,8 +259,8 @@ public class SwaggerVerticle extends AbstractVerticle {
         openAPIDoc.components(components);
 
         // Serve the Swagger JSON spec out on /swagger
-        router.get("/swagger").handler(res ->  res.response().setStatusCode(200).end(Json.pretty(openAPIDoc)));
-        log.info("swagger服务监听端口:{}", swaggerPort);
+        router.get("/swagger").handler(res ->  res.response().putHeader("Content-Type","text/html;charset=utf-8").setStatusCode(200).end(Json.pretty(openAPIDoc)));
+        log.info("swagger服务启动:{}", "http://" + ipUtil.getInetAddress().getHostAddress() + ":" + swaggerPort + "/swagger");
         vertx.createHttpServer().requestHandler(router).listen(swaggerPort);
     }
 
