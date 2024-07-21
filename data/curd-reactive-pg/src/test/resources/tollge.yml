@@ -3,9 +3,6 @@ application:
 jdbc:
   host: host
   port: 5432
-  database: dbname
-  user: dbuser
-  password: pa*
-  maxSize: 20
-  maxWaitQueueSize: 2
-  cachePreparedStatements: false
+  database: ***
+  user: ***
+  password: ***

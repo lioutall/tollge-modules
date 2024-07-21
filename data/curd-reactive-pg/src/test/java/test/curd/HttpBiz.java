@@ -15,7 +15,7 @@ public class HttpBiz extends BizVerticle {
     @Path("/fetchOne")
     @NotNull(key="a", msg="a is test key, it can't be null")
     public void fetchOne(Message<JsonObject> msg) {
-        one("testDB.fetchOne", msg,
+        this.one("testDB.fetchOne", msg,
                 new JsonObject().put("a", msg.body().getString("a") + " response"));
     }
 
