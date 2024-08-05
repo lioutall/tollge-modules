@@ -41,6 +41,13 @@
     </dependency>
 
     <dependency>
+      <groupId>com.tollge</groupId>
+      <artifactId>data-redis</artifactId>
+      <version>${parent.version}</version>
+    </dependency>
+
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>

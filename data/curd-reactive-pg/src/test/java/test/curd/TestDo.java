@@ -1,6 +1,6 @@
 package test.curd;
 
-import com.tollge.common.BaseDo;
+import com.tollge.common.BaseModel;
 import lombok.*;
 
 @NoArgsConstructor
@@ -8,7 +8,7 @@ import lombok.*;
 @Getter
 @Setter
 @ToString
-public class TestDo extends BaseDo {
+public class TestDo extends BaseModel {
     private String a;
     private String underlineToCamel;
 }

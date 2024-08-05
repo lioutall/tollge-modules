@@ -296,8 +296,10 @@ public class SwaggerVerticle extends AbstractVerticle {
 
     private Operation fetchOperation(OpenAPI openAPI, Map<String, PathItem> pathItemMap, Http http, Path path) {
         PathItem pathItem = null;
+        boolean newAdd = false;
         // 同一个url, 对应一个PathItem
         if (pathItemMap.containsKey(path.description())) {
+            log.error("出现相同的swagger描述:" + path.description());
             pathItem = pathItemMap.get(path.description());
         } else {
             pathItem = new PathItem();
@@ -306,6 +308,7 @@ public class SwaggerVerticle extends AbstractVerticle {
         }
         Operation operation = new Operation();
         operation.setDescription(path.description());
+        operation.setSummary(path.description());
         switch (path.method()) {
             case GET: pathItem.setGet(operation); break;
             case POST: pathItem.setPost(operation); break;

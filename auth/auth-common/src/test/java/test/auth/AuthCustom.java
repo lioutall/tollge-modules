@@ -2,34 +2,33 @@ package test.auth;
 
 import com.google.common.collect.ImmutableSet;
 import com.tollge.common.auth.AbstractAuth;
-import com.tollge.common.auth.Subject;
+import com.tollge.common.auth.LoginUser;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.auth.User;
 import io.vertx.ext.web.RoutingContext;
 
-import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class AuthCustom extends AbstractAuth {
-    private Map<String, Subject> subjectCache = new HashMap<>();
+    private final Map<String, LoginUser> subjectCache = new HashMap<>();
     private static final String SESSION_HEADER_KEY = "Authentication";
     //默认sessionId 过期时间
     private static final long DEFAULT_SESSION_TIMEOUT = 1800L;
 
     @Override
-    public void addSubject(String key, Subject subject, Handler<AsyncResult<String>> resultHandler) {
-        subjectCache.put(key, subject);
+    public void cacheLoginUser(String key, LoginUser loginUser, Handler<AsyncResult<Boolean>> resultHandler) {
+        subjectCache.put(key, loginUser);
         resultHandler.handle(Future.succeededFuture());
     }
 
     @Override
-    public void getSubject(String key, Handler<AsyncResult<Subject>> resultHandler) {
-        if (subjectCache == null) {
+    public void getLoginUser(String key, Handler<AsyncResult<LoginUser>> resultHandler) {
+        if (!subjectCache.containsKey(key)) {
             resultHandler.handle(Future.failedFuture("unlogin"));
         } else {
             resultHandler.handle(Future.succeededFuture(subjectCache.get(key)));
@@ -37,20 +36,14 @@ public class AuthCustom extends AbstractAuth {
     }
 
     @Override
-    public void removeSubject(String key, Handler<AsyncResult<Void>> resultHandler) {
+    public void removeLoginUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
         subjectCache.remove(key);
         resultHandler.handle(Future.succeededFuture());
     }
 
     @Override
-    public void refreshTime(String key) {
-
-    }
-
-    @Override
-    public boolean clearSubjects() {
-        LocalDateTime now = LocalDateTime.now();
-        subjectCache.entrySet().removeIf(entry -> entry.getValue().getTime().isBefore(now.minusSeconds(DEFAULT_SESSION_TIMEOUT)));
+    public boolean clearLoginUser() {
+        subjectCache.entrySet().removeIf(entry -> entry.getValue().getLoginTime().before(new Date(System.currentTimeMillis() - DEFAULT_SESSION_TIMEOUT*1000)));
         return true;
     }
 
@@ -74,33 +67,17 @@ public class AuthCustom extends AbstractAuth {
     }
 
     @Override
-    public void login(RoutingContext ctx, JsonObject authInfo, Handler<AsyncResult<User>> resultHandler) {
-        String username = authInfo.getString("username");
-        String password = authInfo.getString("password");
-        String openid = authInfo.getString("openid");
-        if (StringUtil.isNullOrEmpty(username) && StringUtil.isNullOrEmpty(openid)) {
-            resultHandler.handle(Future.failedFuture("authInfo must contain username in 'username' field"));
-            return;
-        }
-        if (StringUtil.isNullOrEmpty(password) && StringUtil.isNullOrEmpty(openid)) {
-            resultHandler.handle(Future.failedFuture("authInfo must contain password in 'password' field"));
-            return;
-        }
-
-        // AuthUser user = new AuthUser();
-        // user.setPrincipal(new JsonObject().put("username", username).put(Const.ID, 111));
-        // user.appendPermissions(ImmutableSet.of("GET:/web/userInfo"));
-        // resultHandler.handle(Future.succeededFuture(user));
-
-    }
-
-    @Override
-    public void getAnnoPremissions(Handler<AsyncResult<ImmutableSet<String>>> resultHandler) {
+    public void getAnnoPermissions(Handler<AsyncResult<Set<String>>> resultHandler) {
         resultHandler.handle(Future.succeededFuture(ImmutableSet.of("GET:/web/login")));
     }
 
     @Override
-    public void kickUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
+    public void checkPermission(String s, RoutingContext ctx, Handler<AsyncResult<Boolean>> handler) {
+
+    }
+
+    @Override
+    public void kickLoginUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
         resultHandler.handle(Future.succeededFuture(true));
     }
 }

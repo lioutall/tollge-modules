@@ -1,2 +1,2 @@
 verticles:
-  data: com.tollge.modules.curd.reactivepg.DaoVerticle,HALF
+  00pgsql: com.tollge.modules.curd.reactivepg.DaoVerticle,HALF

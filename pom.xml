@@ -11,8 +11,8 @@
   <packaging>pom</packaging>
 
   <properties>
-    <maven.compiler.source>20</maven.compiler.source>
-    <maven.compiler.target>20</maven.compiler.target>
+    <maven.compiler.source>22</maven.compiler.source>
+    <maven.compiler.target>22</maven.compiler.target>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -21,7 +21,7 @@
     <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
 
-    <vertx.version>4.5.8</vertx.version>
+    <vertx.version>4.5.9</vertx.version>
     <junit-jupiter.version>5.7.0</junit-jupiter.version>
   </properties>
 
@@ -29,6 +29,7 @@
     <module>/auth/auth-common</module>
     <module>/data/curd-reactive-pg</module>
     <module>/data/curd-vertx</module>
+    <module>/data/data-redis</module>
     <module>microservices/microservices-eureka-client</module>
     <module>microservices/microservices-eureka-server</module>
     <module>web/web-http</module>
@@ -58,6 +59,18 @@
       <dependency>
         <groupId>io.vertx</groupId>
         <artifactId>vertx-pg-client</artifactId>
+        <version>${vertx.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-auth-common</artifactId>
+        <version>${vertx.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-redis-client</artifactId>
         <version>${vertx.version}</version>
       </dependency>
     </dependencies>

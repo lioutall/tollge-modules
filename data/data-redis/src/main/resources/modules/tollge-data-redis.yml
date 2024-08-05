@@ -1,0 +1,2 @@
+verticles:
+  00redis: com.tollge.modules.data.redis.RedisVerticle,1

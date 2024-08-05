@@ -2,13 +2,13 @@ package com.tollge.modules.auth.common;
 
 import com.google.common.collect.ImmutableSet;
 import com.tollge.common.auth.AbstractAuth;
-import com.tollge.common.auth.Subject;
+import com.tollge.common.auth.LoginUser;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.auth.User;
 import io.vertx.ext.web.RoutingContext;
+
+import java.util.Set;
 
 /**
  * 默认权限校验处理方法
@@ -17,27 +17,23 @@ import io.vertx.ext.web.RoutingContext;
 public class AuthDefault extends AbstractAuth {
 
     @Override
-    public void addSubject(String key, Subject subject, Handler<AsyncResult<String>> resultHandler) {
+    public void cacheLoginUser(String key, LoginUser loginUser, Handler<AsyncResult<Boolean>> resultHandler) {
         resultHandler.handle(Future.succeededFuture());
     }
 
     @Override
-    public void getSubject(String key, Handler<AsyncResult<Subject>> resultHandler) {
+    public void getLoginUser(String key, Handler<AsyncResult<LoginUser>> resultHandler) {
         resultHandler.handle(Future.succeededFuture(null));
     }
 
     @Override
-    public void removeSubject(String key, Handler<AsyncResult<Void>> resultHandler) {
-        resultHandler.handle(Future.succeededFuture());
+    public void removeLoginUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
+        resultHandler.handle(Future.succeededFuture(true));
     }
 
-    @Override
-    public void refreshTime(String key) {
-
-    }
 
     @Override
-    public boolean clearSubjects() {
+    public boolean clearLoginUser() {
         return false;
     }
 
@@ -52,19 +48,19 @@ public class AuthDefault extends AbstractAuth {
     }
 
     @Override
-    public void login(RoutingContext ctx, JsonObject authInfo, Handler<AsyncResult<User>> resultHandler) {
-        // resultHandler.handle(Future.succeededFuture(new AuthUser()));
-    }
-
-    @Override
-    public void getAnnoPremissions(Handler<AsyncResult<ImmutableSet<String>>> resultHandler) {
+    public void getAnnoPermissions(Handler<AsyncResult<Set<String>>> resultHandler) {
         // 默认所有URL都是匿名, 请重写该方法
         ImmutableSet<String> sendback = ImmutableSet.of("*");
         resultHandler.handle(Future.succeededFuture(sendback));
     }
 
     @Override
-    public void kickUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
+    public void checkPermission(String permission, RoutingContext ctx, Handler<AsyncResult<Boolean>> handler) {
+        handler.handle(Future.succeededFuture(true));
+    }
+
+    @Override
+    public void kickLoginUser(String key, Handler<AsyncResult<Boolean>> resultHandler) {
         // nothing
         resultHandler.handle(Future.succeededFuture(true));
     }

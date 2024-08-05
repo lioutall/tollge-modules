@@ -1,10 +1,8 @@
 package com.tollge.modules.auth.common;
 
-import com.google.common.collect.ImmutableSet;
-import com.tollge.common.ResultFormat;
-import com.tollge.common.StatusCodeMsg;
 import com.tollge.common.auth.AbstractAuth;
-import com.tollge.common.auth.Subject;
+import com.tollge.common.auth.LoginUser;
+import com.tollge.common.util.Const;
 import com.tollge.common.util.MyVertx;
 import com.tollge.common.util.Properties;
 import io.netty.util.internal.StringUtil;
@@ -16,7 +14,7 @@ import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.InvocationTargetException;
-import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -25,7 +23,7 @@ import java.util.UUID;
  **/
 @Slf4j
 public class AuthHandlerImpl implements AuthHandler {
-    private ImmutableSet<String> annoPermissionSet;
+    private Set<String> annoPermissionSet;
     private AbstractAuth authCustom;
 
     private String contextPath;
@@ -37,30 +35,32 @@ public class AuthHandlerImpl implements AuthHandler {
             this.authCustom = new AuthDefault();
         } else {
             try {
-                Class cls = Class.forName(implPath);
+                Class<?> cls = Class.forName(implPath);
                 this.authCustom = (AbstractAuth)cls.getDeclaredConstructor().newInstance();
             } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
+                log.error("auth handler impl is not exist " + implPath, e);
                 this.authCustom = new AuthDefault();
             }
         }
 
         this.contextPath = Properties.getString("application", "context.path");
 
-        authCustom.getAnnoPremissions(f -> {
+        authCustom.getAnnoPermissions(f -> {
             if (f.succeeded()) {
                 annoPermissionSet = f.result();
             }
         });
 
-        if(authCustom.clearSubjects()) {
+        if(authCustom.clearLoginUser()) {
             // 一分钟清理一次
-            MyVertx.vertx().setPeriodic(60_000, id -> authCustom.clearSubjects());
+            MyVertx.vertx().setPeriodic(60_000, _ -> authCustom.clearLoginUser());
         }
     }
 
     @Override
     public void handle(RoutingContext ctx) {
         String sessionKey = authCustom.fetchFromBrowser(ctx);
+        ctx.put(Const.AUTH_CUSTOM, authCustom);
         if (StringUtil.isNullOrEmpty(sessionKey)) {
             sessionKey = UUID.randomUUID().toString();
             authCustom.sendtoBrowser(ctx, sessionKey);
@@ -75,42 +75,41 @@ public class AuthHandlerImpl implements AuthHandler {
         }
         String permission = method+":"+path;
 
-        //获取当前用户
-        getOrCreateSubject(sessionKey, f -> {
-            if (f.succeeded()) {
-                Subject subject = f.result();
-                subject.storeCurrentSubject(ctx);
+        if (checkAnno(permission)) {
+            ctx.next();
+            return;
+        }
 
-                if (checkAdmin(subject) || checkAnno(permission)) {
-                    subject.refreshTime(LocalDateTime.now());
+        //获取当前用户
+        getLoginUser(sessionKey, f -> {
+            if (f.succeeded()) {
+                LoginUser loginUser = f.result();
+                ctx.put(Const.LOGIN_USER, loginUser);
+
+                if (checkAdmin(loginUser)) {
                     ctx.next();
                 } else {
-                    // 用户是否登录成功
-                    if (subject.isAuthenticated()) {
-                        subject.isAuthorised(permission, res -> {
-                            // 用户是否具备访问permission权限
-                            if (res.succeeded() && res.result()) {
-                                subject.refreshTime(LocalDateTime.now());
-                                ctx.next();
-                            } else {
-                                authCustom.failAuthenticate(ctx);
-                            }
-                        });
-                    } else {
-                        authCustom.failLogin(ctx);
-                    }
+                    //权限校验
+                    authCustom.checkPermission(permission, ctx, res -> {
+                        // 用户是否具备访问permission权限
+                        if (res.succeeded() && res.result()) {
+                            ctx.next();
+                        } else {
+                            authCustom.failAuthenticate(ctx);
+                        }
+                    });
                 }
             } else {
-                // 获取或创建不成功
-                log.error("get or create subject failed", f.cause());
-                ctx.response().end(ResultFormat.format(StatusCodeMsg.C316, f.cause()));
+                // 未登录
+                log.warn("get or create subject failed", f.cause());
+                authCustom.failLogin(ctx);
             }
         });
 
     }
 
-    private boolean checkAdmin(Subject subject) {
-        return subject != null && subject.getPrincipal() != null && "admin".equals(subject.getPrincipal().getString("role"));
+    private boolean checkAdmin(LoginUser user) {
+        return user != null && user.getRoleIdList() != null && user.getRoleIdList().stream().anyMatch(o -> o == 1);
     }
 
     private boolean checkAnno(String permission) {
@@ -118,22 +117,17 @@ public class AuthHandlerImpl implements AuthHandler {
                 this.annoPermissionSet.stream().anyMatch(per -> permission.startsWith(per.replaceAll("\\*", "")));
     }
 
-    private void getOrCreateSubject(String sessionKey, Handler<AsyncResult<Subject>> resultHandler) {
+    private void getLoginUser(String sessionKey, Handler<AsyncResult<LoginUser>> resultHandler) {
         if (!StringUtil.isNullOrEmpty(sessionKey)) {
-            authCustom.getSubject(sessionKey, f -> {
+            authCustom.getLoginUser(sessionKey, f -> {
                 if (f.succeeded() && f.result() != null) {
                     resultHandler.handle(Future.succeededFuture(f.result()));
                 } else {
-                    createSubject(sessionKey, resultHandler);
+                    resultHandler.handle(Future.failedFuture("failed to get login user"));
                 }
             });
         } else {
-            createSubject(sessionKey, resultHandler);
+            resultHandler.handle(Future.failedFuture("failed to get login user"));
         }
-    }
-
-    private void createSubject(String sessionKey, Handler<AsyncResult<Subject>> resultHandler) {
-        Subject newSubject = new Subject(sessionKey, authCustom);
-        authCustom.addSubject(sessionKey, newSubject, a -> resultHandler.handle(Future.succeededFuture(newSubject)));
     }
 }

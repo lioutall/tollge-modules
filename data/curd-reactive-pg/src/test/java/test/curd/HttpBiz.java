@@ -19,4 +19,11 @@ public class HttpBiz extends BizVerticle {
                 new JsonObject().put("a", msg.body().getString("a") + " response"));
     }
 
+    @Path("/one")
+    @NotNull(key="a", msg="a is test key, it can't be null")
+    public void one(Message<JsonObject> msg) {
+//        DaoVerticle dao = MyDao.getDao();
+        this.one("testDB.one", msg,
+                new JsonObject().put("id", msg.body().getLong("a")));
+    }
 }

@@ -1,0 +1,5 @@
+application:
+  baseScan: test.redis
+redis:
+  type: STANDALONE
+  connectionString: redis://127.0.0.1:6379
