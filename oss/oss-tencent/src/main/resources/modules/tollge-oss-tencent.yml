@@ -1,0 +1,2 @@
+verticles:
+  oss-tencent: com.tollge.modules.oss.tencent.TencentOssVerticle,1

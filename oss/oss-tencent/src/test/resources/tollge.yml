@@ -1,0 +1,9 @@
+application:
+  baseScan: test.tencent
+oss:
+  tencent:
+    secretId: 1
+    secretKey: 2
+    region: ap-shanghai
+    basePath: biz
+    appid: 3

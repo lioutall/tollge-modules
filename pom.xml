@@ -36,6 +36,7 @@
     <module>web/web-swagger</module>
     <module>web/web-http2</module>
     <module>oss/oss-qiniu</module>
+    <module>oss/oss-tencent</module>
     <module>sms/sms-dayu</module>
     <module>wechat/wechat-gzh</module>
   </modules>
