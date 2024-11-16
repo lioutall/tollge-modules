@@ -1,9 +1,12 @@
 package com.tollge.modules.data.redis;
 
+import com.google.common.collect.Lists;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Command;
 import io.vertx.redis.client.RedisConnection;
 import io.vertx.redis.client.Request;
@@ -13,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class MyRedis {
@@ -186,6 +191,83 @@ public class MyRedis {
 
     public static Future<Response> releaseDistributedLock(String lockKey) {
         return releaseDistributedLock(lockKey, Thread.currentThread().getName());
+    }
+    
+    /**
+     * 缓存
+     */
+    public static <T> Future<T> cache(String key, String prefix, int expireSeconds, Class<T> clazz, Future<T> future) {
+        // 转成redis key
+        String redisKey = prefix + key;
+        // 获取缓存
+        return get(redisKey)
+                .compose(response -> {
+                     if (response != null) {
+                         if(clazz == String.class){
+                             return Future.succeededFuture((T) response.toString());
+                         }
+                         return Future.succeededFuture(new JsonObject(response.toString()).mapTo(clazz));
+                     }
+                     
+                     return future.compose(result -> {
+                         // 设置缓存
+                         set(redisKey, result.toString(), expireSeconds * 1000L);
+                         if(clazz == String.class){
+                             return Future.succeededFuture((T) response.toString());
+                         }
+                         return Future.succeededFuture(new JsonObject(response.toString()).mapTo(clazz));
+                     });
+                })
+                .onFailure(error -> log.error("cache error", error));
+    }
+    
+    public static Future<String> cache(String key, String prefix, int expireSeconds, Future<String> future) {
+        return cache(key, prefix, expireSeconds, String.class, future);
+    }
+    
+    public static <T> Future<List<T>> cacheList(List<?> keyList, String prefix, int expireSeconds, Class<T> clazz, Function<List<String>, Future<Map<?, T>>> function) {
+        if(keyList == null || keyList.isEmpty()) {
+            return Future.succeededFuture(Lists.newArrayList());
+        }
+        // keyList 转成 redis key
+        List<String> redisKeyList = keyList.stream().map(k -> prefix + k).collect(Collectors.toList());
+        return MyRedis.mget(redisKeyList)
+               .compose(res -> {
+                   List<T> resultList = Lists.newArrayList();
+                   List missKeyList = Lists.newArrayList();
+                   for (int i = 0; i < keyList.size(); i++) {
+                       Response response = res.get(i);
+                       if (response == null) {
+                           missKeyList.add(keyList.get(i));
+                       }
+                   }
+                   
+                   if (!missKeyList.isEmpty()) {
+                       Future<Map<Object, T>> future = function.apply(missKeyList);
+                       return future
+                               .compose(missRes -> {
+                                   MyRedis.mset(missRes.entrySet().stream().collect(Collectors.toMap(c -> prefix + c.getKey(), c -> Json.encode(c.getValue()))));
+                                   missRes.forEach((key, value) -> MyRedis.expire(prefix + key, expireSeconds));
+                                   for (int i = 0; i < keyList.size(); i++) {
+                                       Response response = res.get(i);
+                                       if (response != null) {
+                                           resultList.add(new JsonObject(response.toString()).mapTo(clazz));
+                                       } else {
+                                           resultList.add(missRes.get(keyList.get(i)));
+                                       }
+                                   }
+                                   return Future.succeededFuture(resultList);
+                               });
+                   } else {
+                       for (int i = 0; i < keyList.size(); i++) {
+                           Response response = res.get(i);
+                           resultList.add(new JsonObject(response.toString()).mapTo(clazz));
+                       }
+                       
+                       return Future.succeededFuture(resultList);
+                   }
+               })
+               .onFailure(err -> log.error("cacheList error", err));
     }
 
 }

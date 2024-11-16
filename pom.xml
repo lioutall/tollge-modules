@@ -30,6 +30,7 @@
     <module>/data/curd-reactive-pg</module>
     <module>/data/curd-vertx</module>
     <module>/data/data-redis</module>
+    <module>/data/data-meilisearch</module>
     <module>microservices/microservices-eureka-client</module>
     <module>microservices/microservices-eureka-server</module>
     <module>web/web-http</module>

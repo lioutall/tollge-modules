@@ -69,7 +69,7 @@ public class MyTencentOss {
     /**
      * 获取临时签名
      */
-    public static TmpSecret getTmpSecret(String bucketName, int expireSeconds) {
+    public static TmpSecret getTmpSecret(String bucketName, int expireSeconds, String path) {
         TmpSecret r = new TmpSecret();
         TreeMap<String, Object> config = new TreeMap<>();
         try {
@@ -94,7 +94,6 @@ public class MyTencentOss {
             config.put("bucket", bucketName);
             // 换成 bucket 所在地区
             String region = Properties.getString("oss", "tencent.region");
-            String basePath = Properties.getString("oss", "tencent.basePath");
             int appid = Properties.getInteger("oss", "tencent.appid");
             config.put("region", region);
 
@@ -111,20 +110,16 @@ public class MyTencentOss {
              * 添加一批操作权限 :
              */
             statement.addActions(new String[]{
-                    "cos:PutObject",
+                    "name/cos:PutObject",
                     // 表单上传、小程序上传
-                    "cos:PostObject",
-                    // 分块上传
-                    "cos:InitiateMultipartUpload",
-                    "cos:ListMultipartUploads",
-                    "cos:ListParts",
-                    "cos:UploadPart",
-                    "cos:CompleteMultipartUpload",
+                    "name/cos:PostObject",
+                    /*
                     // 处理相关接口一般为数据万象产品 权限中以ci开头
                     // 创建媒体处理任务
                     "ci:CreateMediaJobs",
                     // 文件压缩
                     "ci:CreateFileProcessJobs"
+                    */
             });
 
             /*
@@ -142,8 +137,8 @@ public class MyTencentOss {
              * 示例：授权examplebucket-1250000000 bucket目录下的所有资源给cos和ci 授权两条Resource
              */
             statement.addResources(new String[]{
-                    "qcs::cos:"+region+":uid/"+appid+":"+bucketName+ "/" +basePath +"/*",
-                    "qcs::ci:"+region+":uid/"+appid+":bucket/"+bucketName+ "/" +basePath +"/*"});
+                    "qcs::cos:"+region+":uid/"+appid+":"+bucketName + path,
+                    "qcs::ci:"+region+":uid/"+appid+":bucket/"+bucketName + path});
 
             // 把一条 statement 添加到 policy
             // 可以添加多条

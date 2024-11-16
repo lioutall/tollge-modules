@@ -48,6 +48,8 @@ public class AuthHandlerImpl implements AuthHandler {
         authCustom.getAnnoPermissions(f -> {
             if (f.succeeded()) {
                 annoPermissionSet = f.result();
+            } else {
+                log.error("get anno permission failed", f.cause());
             }
         });
 

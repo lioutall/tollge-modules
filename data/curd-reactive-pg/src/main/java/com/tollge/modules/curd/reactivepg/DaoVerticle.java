@@ -161,7 +161,7 @@ public class DaoVerticle extends AbstractDao {
                 .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
     }
 
-    private static Class<?> getClassFromMsg(Message<JsonObject> msg) {
+    private static Class<?> getClassFromMsg(Message<?> msg) {
         String headerCls = msg.headers().get(RETURN_CLASS_TYPE);
         Class<?> cCls = null;
         try {
@@ -260,31 +260,53 @@ public class DaoVerticle extends AbstractDao {
                 .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
     }
 
-    public Future<Integer> batch(List<SqlAndParams> sqlAndParamsList) {
+    public <T> Future<List<T>> batch(SqlAndParams sqlAndParams, Class<T> cCls) {
+        
+        List<Tuple> collect = Lists.newArrayList();
+        SqlSession sqlSession = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().getFirst());
+        String sqlWithNum = w2n(sqlSession.getSql(), sqlSession.getParams().size());
+        collect.add(jsonArray2Tuple(sqlSession.getParams()));
+        for (int i = 1; i < sqlAndParams.getBatchParams().size(); i++) {
+            SqlSession sqlSessionTmp = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().get(i));
+            collect.add(jsonArray2Tuple(sqlSessionTmp.getParams()));
+        }
+        
         return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
         ).compose(conn -> {
-            List<SqlSession> list = sqlAndParamsList.stream()
-                    .map(sp -> getRealSql(sp.getSqlKey(), sp.getParams())).toList();
-
-            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(list.getFirst().getSql())
-                            .executeBatch(list.stream().map(se -> jsonArray2Tuple(se.getParams())).collect(Collectors.toList()), fromHandler(reply)))
+            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlWithNum)
+                            .executeBatch(collect, fromHandler(reply)))
                     .compose(res -> {
-                        return Future.succeededFuture(res.size());
+                        return Future.succeededFuture(under2Camel(res, cCls));
                     }).onComplete(_ -> conn.close());
         });
     }
-
+    private String w2n(String sql, int count) {
+        int i = 1;
+        int j = 0;
+        char[] sqlN = new char[sql.length() + count];
+        for (char c : sql.toCharArray()) {
+            if(c == '?'){
+                sqlN[j++] = '$';
+                sqlN[j++] = (char) ('0' + i++);
+            } else {
+                sqlN[j++] = c;
+            }
+        }
+        return new String(sqlN);
+    }
+    
     @Override
-    protected void batch(Message<JsonArray> msg) {
-        List<SqlAndParams> sqlAndParamsList = fetchSqlAndParamsList(msg);
-        if (sqlAndParamsList == null || sqlAndParamsList.isEmpty()) {
+    protected void batch(Message<SqlAndParams> msg) {
+        final SqlAndParams sqlAndParams = msg.body();
+        if (sqlAndParams == null) {
             msg.fail(501, "batch 为空, 请检查");
             return;
         }
+        Class<?> cCls = getClassFromMsg(msg);
 
-        batch(sqlAndParamsList)
+        batch(sqlAndParams, cCls)
                 .onSuccess(msg::reply)
-                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParamsList.getFirst().getSqlKey(), e)));
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
     }
 
     @Override
@@ -461,7 +483,13 @@ public class DaoVerticle extends AbstractDao {
     private Tuple jsonArray2Tuple(List<Object> list) {
         Tuple t = new ArrayTuple(list.size());
         for (Object elt : list) {
-            t.addValue(elt);
+            if(elt instanceof List) {
+                t.addValue(new JsonArray((List)elt));
+            } else if(elt instanceof Map) {
+                t.addValue(new JsonObject((Map) elt));
+            } else {
+                t.addValue(elt);
+            }
         }
         return t;
     }

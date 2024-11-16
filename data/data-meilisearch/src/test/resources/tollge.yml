@@ -1,0 +1,7 @@
+application:
+  baseScan: test.meilisearch
+meilisearch:
+  host: localhost
+  port: 7700
+  isSsl: false
+  masterKey: justakey

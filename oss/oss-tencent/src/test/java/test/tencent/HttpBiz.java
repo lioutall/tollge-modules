@@ -15,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 public class HttpBiz extends BizVerticle {
 
     @Path("/testOss")
-    public void testRedis(Message<JsonObject> msg) {
-        TmpSecret tmpSecret = MyTencentOss.getTmpSecret("product-public-1251579316", 600);
+    public void testOss(Message<JsonObject> msg) {
+        TmpSecret tmpSecret = MyTencentOss.getTmpSecret("product-public-1251579316", 600, "/*");
         System.out.println(tmpSecret);
 
         msg.reply(Json.CODEC.toString(tmpSecret));

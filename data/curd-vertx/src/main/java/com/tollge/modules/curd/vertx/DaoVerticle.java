@@ -76,7 +76,11 @@ public class DaoVerticle extends AbstractDao {
 
     private SqlSession getSqlSession(Message<?> msg, SqlAndParams sqlAndParams) {
         try {
-            return getRealSql(sqlAndParams.getSqlKey(), sqlAndParams.getParams());
+            Map<String, Object> params = sqlAndParams.getParams();
+            if(params == null && sqlAndParams.getBatchParams()!= null &&!sqlAndParams.getBatchParams().isEmpty()) {
+                params = sqlAndParams.getBatchParams().getFirst();
+            }
+            return getRealSql(sqlAndParams.getSqlKey(), params);
         } catch (Exception e) {
             log.error(GET_REAL_SQL_FAILED, sqlAndParams.getSqlKey(), e);
             msg.fail(501, e.toString());
@@ -237,34 +241,29 @@ public class DaoVerticle extends AbstractDao {
     }
 
     @Override
-    protected void batch(Message<JsonArray> msg) {
-        List<SqlAndParams> sqlAndParamsList = fetchSqlAndParamsList(msg);
-        if (sqlAndParamsList == null || sqlAndParamsList.isEmpty()) {
-            msg.fail(501, "batch 为空, 请检查");
-            return;
-        }
+    protected void batch(Message<SqlAndParams> msg) {
+        final SqlAndParams sqlAndParams = fetchSqlAndParamsBody(msg);
 
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
                 SQLConnection conn = connection.result();
-
-                List<SqlSession> list = null;
-                try {
-                    list = sqlAndParamsList.stream().map(sp ->
-                            getRealSql(sp.getSqlKey(), sp.getParams())).collect(Collectors.toList());
-                } catch (Exception e) {
-                    log.error(GET_REAL_SQL_FAILED, sqlAndParamsList.get(0).getSqlKey(), e);
-                    msg.fail(501, e.toString());
+                
+                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
+                if (sqlSession == null) {
                     return;
                 }
-                String sqlId = list.get(0).getSql();
-                conn.batchWithParams(sqlId, list.stream().map(se -> new JsonArray(se.getParams())).collect(Collectors.toList()), res -> {
+                
+                List<JsonArray> collect = sqlAndParams.getBatchParams().stream().map(a -> {
+                                            List<Object> params = SqlTemplate.generateSQL(sqlSession.getSql(), a).getParams();
+                                            return new JsonArray(params);
+                                        }).collect(Collectors.toList());
+                conn.batchWithParams(sqlSession.getSql(), collect, res -> {
                     if (res.succeeded()) {
                         int result = res.result().size();
                         msg.reply(result);
                         conn.close();
                     } else {
-                        log.error("batch.batch[{}] failed", sqlId, connection.cause());
+                        log.error("batch.batch[{}] failed", sqlAndParams, connection.cause());
                         conn.close();
                         msg.fail(501, res.cause().toString());
                     }
@@ -397,6 +396,14 @@ public class DaoVerticle extends AbstractDao {
 
     protected SqlAndParams fetchSqlAndParams(Message<JsonObject> msg) {
         SqlAndParams sqlAndParams = msg.body() != null ? msg.body().mapTo(SqlAndParams.class) : null;
+        if (sqlAndParams == null) {
+            throw new SqlEngineException("sqlAndParams is null");
+        }
+        return sqlAndParams;
+    }
+    
+    protected SqlAndParams fetchSqlAndParamsBody(Message<SqlAndParams> msg) {
+        SqlAndParams sqlAndParams = msg.body();
         if (sqlAndParams == null) {
             throw new SqlEngineException("sqlAndParams is null");
         }
