@@ -61,7 +61,7 @@ public class DaoVerticle extends AbstractDao {
                         RowIterator<Row> ite = res.iterator();
                         Row r = ite.next();
                         return Future.succeededFuture(r.getLong(0));
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(a -> conn.close());
         });
     }
 
@@ -184,7 +184,7 @@ public class DaoVerticle extends AbstractDao {
                             .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
                     .compose(res -> {
                        return Future.succeededFuture(under2Camel(res, cls));
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(a -> conn.close());
         });
     }
 
@@ -207,7 +207,7 @@ public class DaoVerticle extends AbstractDao {
                     .compose(res -> {
                         List<T> ts = under2Camel(res, cls);
                         return Future.succeededFuture(ts.isEmpty() ? null : ts.getFirst());
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(a -> conn.close());
         });
     }
 
@@ -246,7 +246,7 @@ public class DaoVerticle extends AbstractDao {
                             }
                         }
                         return Future.succeededFuture(result);
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(a -> conn.close());
         });
     }
 
@@ -261,7 +261,7 @@ public class DaoVerticle extends AbstractDao {
     }
 
     public <T> Future<List<T>> batch(SqlAndParams sqlAndParams, Class<T> cCls) {
-        
+
         List<Tuple> collect = Lists.newArrayList();
         SqlSession sqlSession = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().getFirst());
         String sqlWithNum = w2n(sqlSession.getSql(), sqlSession.getParams().size());
@@ -270,14 +270,14 @@ public class DaoVerticle extends AbstractDao {
             SqlSession sqlSessionTmp = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().get(i));
             collect.add(jsonArray2Tuple(sqlSessionTmp.getParams()));
         }
-        
+
         return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
         ).compose(conn -> {
             return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlWithNum)
                             .executeBatch(collect, fromHandler(reply)))
                     .compose(res -> {
                         return Future.succeededFuture(under2Camel(res, cCls));
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(a -> conn.close());
         });
     }
     private String w2n(String sql, int count) {
@@ -294,7 +294,7 @@ public class DaoVerticle extends AbstractDao {
         }
         return new String(sqlN);
     }
-    
+
     @Override
     protected void batch(Message<SqlAndParams> msg) {
         final SqlAndParams sqlAndParams = msg.body();
@@ -370,7 +370,7 @@ public class DaoVerticle extends AbstractDao {
                             );
                         })
                         // Return the connection to the pool
-                        .onComplete(_ -> conn.close())
+                        .onComplete(a -> conn.close())
                         .onSuccess(v -> System.out.println("Transaction succeeded"))
                         .onFailure(err -> System.out.println("Transaction failed: " + err.getMessage()));
             } else {
