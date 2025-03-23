@@ -49,7 +49,7 @@ public class Tester {
             objectMapper.registerModule(module);
 
             Async async = context.async();
-            vertx.eventBus().request("biz://tt/one", new JsonObject().put("a", 1), reply -> {
+            vertx.eventBus().request("biz://tt/transaction", new JsonObject().put("a", 1), reply -> {
                 if(reply.succeeded()) {
                     System.out.println("final: "+reply.result().body());
                 } else {

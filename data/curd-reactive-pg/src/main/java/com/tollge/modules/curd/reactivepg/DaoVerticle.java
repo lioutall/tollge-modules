@@ -16,6 +16,7 @@ import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.pgclient.PgBuilder;
@@ -61,7 +62,7 @@ public class DaoVerticle extends AbstractDao {
                         RowIterator<Row> ite = res.iterator();
                         Row r = ite.next();
                         return Future.succeededFuture(r.getLong(0));
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(o -> conn.close());
         });
     }
 
@@ -184,7 +185,7 @@ public class DaoVerticle extends AbstractDao {
                             .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
                     .compose(res -> {
                        return Future.succeededFuture(under2Camel(res, cls));
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(o -> conn.close());
         });
     }
 
@@ -207,7 +208,7 @@ public class DaoVerticle extends AbstractDao {
                     .compose(res -> {
                         List<T> ts = under2Camel(res, cls);
                         return Future.succeededFuture(ts.isEmpty() ? null : ts.getFirst());
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(o -> conn.close());
         });
     }
 
@@ -246,7 +247,7 @@ public class DaoVerticle extends AbstractDao {
                             }
                         }
                         return Future.succeededFuture(result);
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(o -> conn.close());
         });
     }
 
@@ -273,11 +274,10 @@ public class DaoVerticle extends AbstractDao {
         
         return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
         ).compose(conn -> {
-            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlWithNum)
-                            .executeBatch(collect, fromHandler(reply)))
+            return conn.preparedQuery(sqlWithNum).executeBatch(collect)
                     .compose(res -> {
                         return Future.succeededFuture(under2Camel(res, cCls));
-                    }).onComplete(_ -> conn.close());
+                    }).onComplete(o -> conn.close());
         });
     }
     private String w2n(String sql, int count) {
@@ -326,53 +326,45 @@ public class DaoVerticle extends AbstractDao {
 
                 // Begin the transaction
                 conn.begin().compose(tx -> {
-                            Future<RowSet<Row>> updates = Future.future(c -> log.info("create PgRowSet Future"));
+                    
+                            Future<RowSet<Row>> updates = Future.succeededFuture();
 
                             for (SqlAndParams sqlParam : sqlAndParamsList) {
-                                final SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
-                                updates = updates.compose(r -> Future.<RowSet<Row>>future(
-                                        ar -> conn.preparedQuery(sqlSession.getSql()).execute(jsonArray2Tuple(sqlSession.getParams()), ar)
-                                ).onComplete(a -> {
-                                    if (a.succeeded()) {
-                                        if ("0".equals(ignore)) {
-                                            RowIterator<Row> ite = a.result().iterator();
-                                            Row row = ite.next();
-                                            Object result = row.getValue(0);
-                                            if (result instanceof Integer && ((Integer) result) == 0) {
-                                                throw new TollgeException("no update: " + sqlParam.getSqlKey());
-                                            }
+                                final String sql = getRealSqlAndParams(sqlParam.getSqlKey(), sqlParam.getParams());
+                                updates = updates.compose(a -> conn.query(sql).execute()
+                                ).compose(a -> {
+                                    log.debug("执行key[{}] sql[{}]完成 返回行数[{}]", sqlParam.getSqlKey(), sql, a.rowCount());
+                                    if ("0".equals(ignore)) {
+                                        int result = a.rowCount();
+                                        if (result == 0) {
+                                            throw new TollgeException("no update: " + sqlParam.getSqlKey());
                                         }
-                                    } else {
-                                        throw new TollgeException("transaction update error: " + sqlParam.getSqlKey());
                                     }
-                                }));
+                                    return Future.succeededFuture();
+                                });
                             }
 
-                            return updates.onComplete(res -> {
-                                        if (res.succeeded()) {
-                                            // Commit the transaction
-                                            tx.commit(ar -> {
-                                                if (ar.succeeded()) {
-                                                    msg.reply(sqlAndParamsList.size());
-                                                } else {
-                                                    tx.rollback();
-                                                    msg.fail(501, ar.cause().getMessage());
-                                                }
-
-                                                // Return the connection to the pool
-                                                conn.close();
-                                            });
+                    return updates.compose(res -> {
+                                    // Commit the transaction
+                                    tx.commit(ar -> {
+                                        if (ar.succeeded()) {
+                                            msg.reply(sqlAndParamsList.size());
                                         } else {
                                             tx.rollback();
-                                            conn.close();
+                                            msg.fail(501, ar.cause().getMessage());
                                         }
-                                    }
-                            );
-                        })
-                        // Return the connection to the pool
-                        .onComplete(_ -> conn.close())
-                        .onSuccess(v -> System.out.println("Transaction succeeded"))
-                        .onFailure(err -> System.out.println("Transaction failed: " + err.getMessage()));
+
+                                        // Return the connection to the pool
+                                        conn.close();
+                                    });
+                                    return Future.succeededFuture();
+                            }
+                    );
+                })
+                // Return the connection to the pool
+                .eventually(() -> conn.close())
+                .onSuccess(v -> log.info("Transaction succeeded"))
+                .onFailure(err -> {log.error("Transaction failed: ", err); msg.fail(501, err.getMessage());});
             } else {
                 log.error("transaction.getConnection failed", connection.cause());
                 msg.fail(501, connection.cause().toString());
@@ -409,18 +401,21 @@ public class DaoVerticle extends AbstractDao {
     protected <T> List<T> under2Camel(RowSet<Row> rs, Class<T> cls) {
         List<T> list = Lists.newArrayList();
         List<String> columns = rs.columnsNames();
-
-        for (Row r : rs) {
-            JsonObject j = new JsonObject();
-            for (String cn : columns) {
-                j.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, cn), safeObj(r.getValue(cn)));
-            }
-            if (cls == JsonObject.class) {
-                list.add((T)j);
-            } else {
-                list.add(j.mapTo(cls));
+        
+        for (RowSet<Row> rows = rs;rows != null;rows = rows.next()) {
+            for (Row r : rows) {
+                JsonObject j = new JsonObject();
+                for (String cn : columns) {
+                    j.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, cn), safeObj(r.getValue(cn)));
+                }
+                if (cls == JsonObject.class) {
+                    list.add((T)j);
+                } else {
+                    list.add(j.mapTo(cls));
+                }
             }
         }
+        
         return list;
     }
 
@@ -478,6 +473,49 @@ public class DaoVerticle extends AbstractDao {
             log.error("获取sql[{}]异常", sqlKey, e);
             throw e;
         }
+    }
+    
+    protected String getRealSqlAndParams(String sqlKey, Map<String, Object> params) {
+        try {
+            SqlSession sqlSession = SqlTemplate.generateSQL(sqlKey, params);
+            return replaceQuestionMarks(sqlSession.getSql(), sqlSession.getParams());
+        } catch (RuntimeException e) {
+            log.error("获取sql[{}]异常", sqlKey, e);
+            throw e;
+        }
+    }
+    
+    private static String replaceQuestionMarks(String input, List<Object> params) {
+        StringBuilder result = new StringBuilder();
+        int counter = 0; // 起始数字为0
+        
+        for (int i = 0; i < input.length(); i++) {
+            char currentChar = input.charAt(i);
+            if (currentChar == '?') {
+                Object o = params.get(counter);
+                if(o instanceof String) {
+                    result.append("'").append(o).append("'"); // 字符串用单引号包裹
+                } else if(o instanceof Number) {
+                    result.append(o); // 数字直接保留
+                } else if(o == null) {
+                    result.append("null"); // null用null表示
+                } else if(o instanceof Boolean) {
+                    result.append(o); // boolean直接保留
+                } else if(o instanceof Map) {
+                    result.append("'").append(Json.encode(o)).append("'");
+                } else if(o instanceof List) {
+                    result.append("'").append(Json.encode(o)).append("'");
+                }
+                else {
+                    throw new SqlEngineException("不支持的参数类型:" + o.getClass());
+                }
+                counter++;            // 数字递增
+            } else {
+                result.append(currentChar); // 非问号直接保留
+            }
+        }
+        
+        return result.toString();
     }
 
     private Tuple jsonArray2Tuple(List<Object> list) {

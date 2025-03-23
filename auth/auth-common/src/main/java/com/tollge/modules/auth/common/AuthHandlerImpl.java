@@ -55,7 +55,7 @@ public class AuthHandlerImpl implements AuthHandler {
 
         if(authCustom.clearLoginUser()) {
             // 一分钟清理一次
-            MyVertx.vertx().setPeriodic(60_000, _ -> authCustom.clearLoginUser());
+            MyVertx.vertx().setPeriodic(60_000, o -> authCustom.clearLoginUser());
         }
     }
 
