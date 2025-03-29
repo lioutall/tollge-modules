@@ -15,6 +15,7 @@ public class CollectionDataTypes {
   public CollectionDataTypes(ConverterService converterService) {
     Map<CollectionDataType, CollectionField> collectionDataTypes = new HashMap<>();
     collectionDataTypes.put(CollectionDataType.LIST, new ListField(converterService));
+    collectionDataTypes.put(CollectionDataType.PAGE, new PageField(converterService));
     collectionDataTypes.put(CollectionDataType.MAP, new MapField(converterService));
     this.collectionDataTypes = Collections.unmodifiableMap(collectionDataTypes);
   }

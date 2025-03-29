@@ -1,5 +1,6 @@
 package test.http;
 
+import com.tollge.common.Page;
 import com.tollge.common.annotation.Method;
 import com.tollge.common.annotation.mark.Path;
 import com.tollge.common.annotation.mark.request.*;
@@ -28,4 +29,10 @@ public class HttpRouter extends AbstractRouter {
     public AsyncResult<User> one(RoutingContext rct, @Body User user) {
         return sendBiz("biz://tt/one", user);
     }
+
+
+  @Path(value = "/page", method = Method.POST, description = "method描述3")
+  public AsyncResult<Page<User>> page(RoutingContext rct, @Body User user) {
+    return sendBiz("biz://tt/one", user);
+  }
 }

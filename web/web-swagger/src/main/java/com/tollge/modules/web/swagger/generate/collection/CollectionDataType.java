@@ -1,6 +1,7 @@
 package com.tollge.modules.web.swagger.generate.collection;
 
 public enum CollectionDataType {
+  PAGE("com.tollge.common.Page"),
   LIST("java.util.List"),
   MAP("java.util.Map");
 

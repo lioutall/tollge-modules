@@ -8,18 +8,19 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public class ListField implements CollectionField {
+public class PageField implements CollectionField {
 
-  private static final String LIST_TYPE_NAME_PATTERN = "java.util.List<";
+  private static final String LIST_TYPE_NAME_PATTERN = "com.tollge.common.Page<";
 
   private final ConverterService converterService;
 
-  public ListField(ConverterService converterService) {
+  public PageField(ConverterService converterService) {
     this.converterService = converterService;
   }
 
   @Override
-  public void addField(Field field, Schema properties) throws ObjectConverterException {
+  public void addField(Field field, Schema properties)
+          throws ObjectConverterException {
     Schema fieldProperties = new Schema<>();
     fieldProperties.setType("array");
     io.swagger.v3.oas.annotations.media.Schema schema = field.getDeclaredAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
@@ -47,7 +48,8 @@ public class ListField implements CollectionField {
   }
 
   @Override
-  public void addItem(String typeName, Schema properties) throws ObjectConverterException {
+  public void addItem(String typeName, Schema properties)
+          throws ObjectConverterException {
     String fieldTypeName = typeName.substring(LIST_TYPE_NAME_PATTERN.length(), typeName.length() - 1);
 
     Schema fieldProperties = new Schema<>();
@@ -57,8 +59,10 @@ public class ListField implements CollectionField {
   }
 
   @Override
-  public void addItems(String typeName, Schema properties) throws ObjectConverterException {
-    String fieldTypeName = typeName.substring(LIST_TYPE_NAME_PATTERN.length(), typeName.length() - 1);
+  public void addItems(String typeName, Schema properties)
+          throws ObjectConverterException {
+    String fieldTypeName =
+            typeName.substring(LIST_TYPE_NAME_PATTERN.length(), typeName.length() - 1);
     Schema fieldProperties = new Schema<>();
     properties.setType("array");
     converterService.addItems(fieldTypeName, fieldProperties);
