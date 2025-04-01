@@ -247,12 +247,12 @@ public class DaoVerticle extends AbstractDao {
         jdbcClient.getConnection(connection -> {
             if (connection.succeeded()) {
                 SQLConnection conn = connection.result();
-                
+
                 SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
                 if (sqlSession == null) {
                     return;
                 }
-                
+
                 List<JsonArray> collect = sqlAndParams.getBatchParams().stream().map(a -> {
                                             List<Object> params = SqlTemplate.generateSQL(sqlSession.getSql(), a).getParams();
                                             return new JsonArray(params);
@@ -401,7 +401,7 @@ public class DaoVerticle extends AbstractDao {
         }
         return sqlAndParams;
     }
-    
+
     protected SqlAndParams fetchSqlAndParamsBody(Message<SqlAndParams> msg) {
         SqlAndParams sqlAndParams = msg.body();
         if (sqlAndParams == null) {

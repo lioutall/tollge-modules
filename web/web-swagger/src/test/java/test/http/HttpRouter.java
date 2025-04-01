@@ -32,7 +32,7 @@ public class HttpRouter extends AbstractRouter {
 
 
   @Path(value = "/page", method = Method.POST, description = "method描述3")
-  public AsyncResult<Page<User>> page(RoutingContext rct, @Body User user) {
-    return sendBiz("biz://tt/one", user);
+  public AsyncResult<Page<User>> page(RoutingContext rct, @Body Req req) {
+    return sendBiz("biz://tt/one", req);
   }
 }

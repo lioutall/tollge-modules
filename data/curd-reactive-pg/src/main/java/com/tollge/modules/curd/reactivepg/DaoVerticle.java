@@ -129,10 +129,10 @@ public class DaoVerticle extends AbstractDao {
                     Future.succeededFuture(conn)
             );
         }).compose(res -> {
-            SqlConnection o3 = res.resultAt(0);
+            SqlConnection o3 = res.resultAt(2);
             o3.close();
             RowSet<Row> o1 = res.resultAt(0);
-            RowSet<Row> o2 = res.resultAt(0);
+            RowSet<Row> o2 = res.resultAt(1);
 
             RowIterator<Row> ite = o1.iterator();
             Row r = ite.next();
@@ -144,7 +144,7 @@ public class DaoVerticle extends AbstractDao {
             JsonArray rows = under2Camel(o2);
 
             for (int i = 0; i < rows.size(); i++) {
-                rPage.add(rows.getJsonObject(i).mapTo(cls));
+              rPage.getResult().add(rows.getJsonObject(i).mapTo(cls));
             }
 
             return Future.succeededFuture(rPage);
@@ -262,7 +262,7 @@ public class DaoVerticle extends AbstractDao {
     }
 
     public <T> Future<List<T>> batch(SqlAndParams sqlAndParams, Class<T> cCls) {
-        
+
         List<Tuple> collect = Lists.newArrayList();
         SqlSession sqlSession = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().getFirst());
         String sqlWithNum = w2n(sqlSession.getSql(), sqlSession.getParams().size());
@@ -271,7 +271,7 @@ public class DaoVerticle extends AbstractDao {
             SqlSession sqlSessionTmp = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().get(i));
             collect.add(jsonArray2Tuple(sqlSessionTmp.getParams()));
         }
-        
+
         return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
         ).compose(conn -> {
             return conn.preparedQuery(sqlWithNum).executeBatch(collect)
@@ -294,7 +294,7 @@ public class DaoVerticle extends AbstractDao {
         }
         return new String(sqlN);
     }
-    
+
     @Override
     protected void batch(Message<SqlAndParams> msg) {
         final SqlAndParams sqlAndParams = msg.body();
@@ -326,7 +326,7 @@ public class DaoVerticle extends AbstractDao {
 
                 // Begin the transaction
                 conn.begin().compose(tx -> {
-                    
+
                             Future<RowSet<Row>> updates = Future.succeededFuture();
 
                             for (SqlAndParams sqlParam : sqlAndParamsList) {
@@ -401,7 +401,7 @@ public class DaoVerticle extends AbstractDao {
     protected <T> List<T> under2Camel(RowSet<Row> rs, Class<T> cls) {
         List<T> list = Lists.newArrayList();
         List<String> columns = rs.columnsNames();
-        
+
         for (RowSet<Row> rows = rs;rows != null;rows = rows.next()) {
             for (Row r : rows) {
                 JsonObject j = new JsonObject();
@@ -415,7 +415,7 @@ public class DaoVerticle extends AbstractDao {
                 }
             }
         }
-        
+
         return list;
     }
 
@@ -474,7 +474,7 @@ public class DaoVerticle extends AbstractDao {
             throw e;
         }
     }
-    
+
     protected String getRealSqlAndParams(String sqlKey, Map<String, Object> params) {
         try {
             SqlSession sqlSession = SqlTemplate.generateSQL(sqlKey, params);
@@ -484,11 +484,11 @@ public class DaoVerticle extends AbstractDao {
             throw e;
         }
     }
-    
+
     private static String replaceQuestionMarks(String input, List<Object> params) {
         StringBuilder result = new StringBuilder();
         int counter = 0; // 起始数字为0
-        
+
         for (int i = 0; i < input.length(); i++) {
             char currentChar = input.charAt(i);
             if (currentChar == '?') {
@@ -514,7 +514,7 @@ public class DaoVerticle extends AbstractDao {
                 result.append(currentChar); // 非问号直接保留
             }
         }
-        
+
         return result.toString();
     }
 

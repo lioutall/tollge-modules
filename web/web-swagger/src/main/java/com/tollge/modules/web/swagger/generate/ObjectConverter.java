@@ -29,6 +29,15 @@ public class ObjectConverter {
           String fieldTypeName = field.getType().getCanonicalName();
           converterService.addField(field, fieldTypeName, model);
         }
+        Class<?> superclass = clazz.getSuperclass();
+        if(superclass != null) {
+          if(superclass.getCanonicalName().startsWith("com.tollge")) {
+            for (Field field : superclass.getDeclaredFields()) {
+              String fieldTypeName = field.getType().getCanonicalName();
+              converterService.addField(field, fieldTypeName, model);
+            }
+          }
+        }
         refModel.$ref("#/components/schemas/" + typeName);
         modelMap.put(typeName, model);
       }
