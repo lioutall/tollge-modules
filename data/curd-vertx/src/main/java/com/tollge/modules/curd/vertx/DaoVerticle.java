@@ -412,6 +412,7 @@ public class DaoVerticle extends AbstractDao {
 
     protected SqlSession getRealSql(String sqlKey, Map<String, Object> params) {
         try {
+          params.put("sql_engine_mode", "$");
             return SqlTemplate.generateSQL(sqlKey, params);
         } catch (RuntimeException e) {
             log.error("获取sql[{}]异常", sqlKey, e);
