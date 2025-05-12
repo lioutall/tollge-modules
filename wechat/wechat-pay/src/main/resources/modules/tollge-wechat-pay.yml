@@ -1,0 +1,4 @@
+wechat:
+  pay.host: api.mch.weixin.qq.com
+  pay.port: 443
+  pay.isSSL: true
