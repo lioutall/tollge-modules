@@ -56,7 +56,7 @@ public class WechatPayVerticle extends BizVerticle {
     // 发送POST请求
     client.post(API_WEIXIN_QQ_COM_PORT, API_WEIXIN_QQ_COM, "/v3/pay/transactions/native")
             .ssl(API_WEIXIN_QQ_COM_SSL)
-            .putHeader("Authorization", "WECHATPAY2-SHA256-RSA2048 mchid=\"" + MCHID + "\",...")
+            .putHeader("Authorization", WeChatPaySigner.signQuery(MCHID, "POST", requestBody.encode(), "/v3/pay/transactions/native"))
             .putHeader("Accept", "application/json")
             .putHeader("Content-Type", "application/json")
             .sendJsonObject(requestBody, res -> {
@@ -85,7 +85,7 @@ public class WechatPayVerticle extends BizVerticle {
     // 发送GET请求
     client.get(API_WEIXIN_QQ_COM_PORT, API_WEIXIN_QQ_COM, urlPath)
             .ssl(API_WEIXIN_QQ_COM_SSL)
-            .putHeader("Authorization", "WECHATPAY2-SHA256-RSA2048 mchid=\"" + MCHID + "\"")
+            .putHeader("Authorization", WeChatPaySigner.signQuery(MCHID, "GET", "", urlPath))
             .putHeader("Accept", "application/json")
             .send(res -> {
                 if (res.succeeded()) {
@@ -101,7 +101,7 @@ public class WechatPayVerticle extends BizVerticle {
    * 支付回调
    */
   /*@Path(CALLBACK)
-  public void callback(Message<JsonObject> msg) {
+  public void callback(Message<ResourcePojo> msg) {
 
   }*/
 

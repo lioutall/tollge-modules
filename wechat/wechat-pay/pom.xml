@@ -46,6 +46,18 @@
       <version>${parent.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk15on</artifactId>
+      <version>1.70</version> <!-- 使用最新版本 -->
+    </dependency>
+    <!-- BouncyCastle PEM 解析库 -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk15on</artifactId>
+      <version>1.70</version> <!-- 使用最新版本 -->
+    </dependency>
+
 
     <dependency>
       <groupId>junit</groupId>

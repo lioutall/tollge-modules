@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 
@@ -17,7 +16,7 @@ public class WeChatPaySigner {
   // 2. 加载私钥
   private static final PrivateKey privateKey = loadPrivateKey();
 
-  public static void signQuery(String mchid, String method, String bodyStr, String uriPath, String machid) {
+  public static String signQuery(String mchid, String method, String bodyStr, String uriPath) {
     long timestamp = System.currentTimeMillis() / 1000;
     String nonceStr = generateNonceStr();
 
@@ -29,9 +28,7 @@ public class WeChatPaySigner {
     String signature = Base64.getEncoder().encodeToString(signatureBytes);
 
     // 4. 构建Authorization头
-    String authorizationHeader = buildAuthorizationHeader(mchid, timestamp, nonceStr, signature);
-
-    System.out.println("Authorization Header: " + authorizationHeader);
+    return buildAuthorizationHeader(mchid, timestamp, nonceStr, signature);
   }
 
   private static String buildSignatureString(String method, String urlPath, long timestamp, String nonceStr, String bodyStr) {
@@ -55,14 +52,25 @@ public class WeChatPaySigner {
     return signatureStream.toString(StandardCharsets.UTF_8);
   }
 
-  private static PrivateKey loadPrivateKey() {
-    byte[] keyBytes = Base64.getDecoder().decode(WeChatPaySigner.PRIVATE_KEY_PEM);
-
-    PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+  /**
+   * 从文本中加载私钥
+   */
+  public static PrivateKey loadPrivateKey() {
+    java.security.Security.addProvider(
+      new org.bouncycastle.jce.provider.BouncyCastleProvider()
+    );
+    String string = WeChatPaySigner.PRIVATE_KEY_PEM
+      .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+      .replace("-----END RSA PRIVATE KEY-----", "")
+      .replace("-----BEGIN PRIVATE KEY-----", "")
+      .replace("-----END PRIVATE KEY-----", "")
+      .replaceAll("\\s", "");
+    byte[] buffer = Base64.getDecoder().decode(string);
+    PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(buffer);
     try {
-      KeyFactory kf = KeyFactory.getInstance("RSA");
-      return kf.generatePrivate(spec);
-    } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+      return keyFactory.generatePrivate(keySpec);
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
