@@ -7,10 +7,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.client.Command;
-import io.vertx.redis.client.RedisConnection;
-import io.vertx.redis.client.Request;
-import io.vertx.redis.client.Response;
+import io.vertx.redis.client.*;
 import io.vertx.redis.client.impl.types.SimpleStringType;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,7 +21,7 @@ public class MyRedis {
     private MyRedis() {
     }
 
-    public static RedisConnection getConn() {
+    public static RedisAPI getClient() {
         if (Singleton.INSTANCE.getInstance().conn == null) {
             int i = 0;
             // 防止调用比连接来得早
@@ -43,8 +40,9 @@ public class MyRedis {
         return Singleton.INSTANCE.getInstance().conn;
     }
 
-    static void init(RedisConnection conn) {
-        Singleton.INSTANCE.init(conn);
+    static void init(Redis client) {
+      RedisAPI redisAPI = RedisAPI.api(client);
+      Singleton.INSTANCE.init(redisAPI);
     }
 
     private enum Singleton {
@@ -61,12 +59,12 @@ public class MyRedis {
             return single;
         }
 
-        void init(RedisConnection conn) {
+        void init(RedisAPI conn) {
             single.conn = conn;
         }
     }
 
-    private RedisConnection conn;
+    private RedisAPI conn;
 
     protected Handler<AsyncResult<Response>> replyHandler(Promise<Response> reply) {
         return result -> {
@@ -79,14 +77,12 @@ public class MyRedis {
     }
 
     public static Future<Response> get(String key) {
-        return Future.future(reply ->
-                getConn().send(Request.cmd(Command.GET).arg(key), reply)
-        );
+        return getClient().get(key);
     }
 
     public static Future<Response> getOrDefault(String key, String def) {
         return Future.future(reply ->
-                getConn().send(Request.cmd(Command.GET).arg(key), r -> {
+                getClient().get(key, r -> {
                     if (r.succeeded()) {
                         if (r.result() == null) {
                             reply.handle(Future.succeededFuture(SimpleStringType.create(def)));
@@ -99,47 +95,35 @@ public class MyRedis {
     }
 
     public static Future<Response> set(String key, String value) {
-        return Future.future(reply -> getConn().send(Request.cmd(Command.SET).arg(key).arg(value), reply));
+      return getClient().set(Lists.newArrayList(key, value));
     }
 
     public static Future<Response> set(String key, String value, long expireMillSeconds) {
-        return Future.future(reply -> getConn().send(Request.cmd(Command.SET).arg(key).arg(value).arg(SET_WITH_EXPIRE_TIME).arg(expireMillSeconds), reply));
+      return getClient().set(Lists.newArrayList(key, value, SET_WITH_EXPIRE_TIME, expireMillSeconds+""));
     }
 
     public static Future<Response> incr(String key) {
-        return Future.future(reply -> getConn().send(Request.cmd(Command.INCR).arg(key), reply));
+      return getClient().incr(key);
     }
 
     public static Future<Response> ttl(String key) {
-        return Future.future(reply -> getConn().send(Request.cmd(Command.TTL).arg(key), reply));
+      return getClient().ttl(key);
     }
 
     public static Future<Response> expire(String key, long seconds) {
-        return Future.future(reply -> getConn().send(Request.cmd(Command.EXPIRE).arg(key).arg(seconds), reply));
+      return getClient().expire(Lists.newArrayList(key, seconds + ""));
     }
 
     public static Future<Response> del(String key) {
-        return Future.future(reply -> getConn().send(Request.cmd(Command.DEL).arg(key), reply));
+      return getClient().del(Lists.newArrayList(key));
     }
 
     public static Future<Response> mget(List<String> keyList) {
-        return Future.future(reply -> {
-            Request cmd = Request.cmd(Command.MGET);
-            for (String s : keyList) {
-                cmd.arg(s);
-            }
-            getConn().send(cmd, reply);
-        });
+      return getClient().mget(keyList);
     }
 
     public static Future<Response> mset(Map<String, String> m) {
-        return Future.future(reply -> {
-            Request cmd = Request.cmd(Command.MSET);
-            for (Map.Entry<String, String> entry : m.entrySet()) {
-                cmd.arg(entry.getKey()).arg(entry.getValue());
-            }
-            getConn().send(cmd, reply);
-        });
+      return getClient().mset(m.entrySet().stream().flatMap(entry -> Lists.newArrayList(entry.getKey(), entry.getValue()).stream()).collect(Collectors.toList()));
     }
 
 
@@ -163,8 +147,7 @@ public class MyRedis {
      * @return 是否获取成功
      */
     public static Future<Response> tryGetDistributedLock(String lockKey, String requestId, int expireTime) {
-        return Future.future(reply -> MyRedis.getConn().send(Request.cmd(Command.SET)
-                .arg(lockKey).arg(requestId).arg(SET_IF_NOT_EXIST).arg(SET_WITH_EXPIRE_TIME).arg(expireTime), reply));
+      return getClient().set(Lists.newArrayList(lockKey, requestId, SET_IF_NOT_EXIST, SET_WITH_EXPIRE_TIME, expireTime+""));
     }
 
     public static Future<Response> tryGetDistributedLock(String lockKey, String requestId) {
@@ -186,13 +169,13 @@ public class MyRedis {
      * @return 是否释放成功
      */
     public static Future<Response> releaseDistributedLock(String lockKey, String requestId) {
-        return Future.future(reply -> MyRedis.getConn().send(Request.cmd(Command.EVAL).arg(RELEASE_SCRIPT).arg(1).arg(lockKey).arg(requestId), reply));
+      return getClient().eval(Lists.newArrayList(RELEASE_SCRIPT, 1+"", lockKey, requestId));
     }
 
     public static Future<Response> releaseDistributedLock(String lockKey) {
         return releaseDistributedLock(lockKey, Thread.currentThread().getName());
     }
-    
+
     /**
      * 缓存
      */
@@ -208,7 +191,7 @@ public class MyRedis {
                          }
                          return Future.succeededFuture(new JsonObject(response.toString()).mapTo(clazz));
                      }
-                     
+
                      return future.compose(result -> {
                          // 设置缓存
                          set(redisKey, result.toString(), expireSeconds * 1000L);
@@ -220,11 +203,11 @@ public class MyRedis {
                 })
                 .onFailure(error -> log.error("cache error", error));
     }
-    
+
     public static Future<String> cache(String key, String prefix, int expireSeconds, Future<String> future) {
         return cache(key, prefix, expireSeconds, String.class, future);
     }
-    
+
     public static <T> Future<List<T>> cacheList(List<?> keyList, String prefix, int expireSeconds, Class<T> clazz, Function<List<String>, Future<Map<?, T>>> function) {
         if(keyList == null || keyList.isEmpty()) {
             return Future.succeededFuture(Lists.newArrayList());
@@ -241,7 +224,7 @@ public class MyRedis {
                            missKeyList.add(keyList.get(i));
                        }
                    }
-                   
+
                    if (!missKeyList.isEmpty()) {
                        Future<Map<Object, T>> future = function.apply(missKeyList);
                        return future
@@ -263,7 +246,7 @@ public class MyRedis {
                            Response response = res.get(i);
                            resultList.add(new JsonObject(response.toString()).mapTo(clazz));
                        }
-                       
+
                        return Future.succeededFuture(resultList);
                    }
                })
