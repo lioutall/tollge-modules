@@ -34,6 +34,7 @@
     <module>microservices/microservices-eureka-client</module>
     <module>microservices/microservices-eureka-server</module>
     <module>web/web-http</module>
+    <module>web/web-static</module>
     <module>web/web-swagger</module>
     <module>web/web-http2</module>
     <module>oss/oss-qiniu</module>

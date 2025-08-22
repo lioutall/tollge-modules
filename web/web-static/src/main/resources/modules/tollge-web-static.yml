@@ -1,0 +1,2 @@
+verticles:
+  static: com.tollge.modules.web.statics.StaticVerticle
