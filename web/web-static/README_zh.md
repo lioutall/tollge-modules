@@ -14,9 +14,9 @@
 web.static:
   web.root: webroot     # 静态文件根目录，默认为webroot
   uri.prefix: /         # URI前缀，默认为/
-  
+
 application:
-  http.port: 8080       # HTTP端口
+  static.port: 8080       # HTTP端口
 ```
 
 ## 使用

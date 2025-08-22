@@ -14,9 +14,9 @@ In `tollge.yml`:
 web.static:
   web.root: webroot     # Static file root directory, default is webroot
   uri.prefix: /         # URI prefix, default is /
-  
+
 application:
-  http.port: 8080       # HTTP port
+  static.port: 8080       # HTTP port
 ```
 
 ## Usage
