@@ -25,7 +25,7 @@ public class StaticVerticle extends AbstractVerticle {
         // 挂载路由
         router.route(uriPrefix + "*").handler(staticHandler);
 
-        int port = Properties.getInteger("application", "http.port");
+        int port = Properties.getInteger("application", "static.port");
         log.info("静态web服务监听端口:{}, 根目录:{}, URI前缀:{}", port, webRoot, uriPrefix);
         vertx.createHttpServer().requestHandler(router).listen(port);
     }
