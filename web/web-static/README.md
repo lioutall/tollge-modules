@@ -16,7 +16,7 @@ web.static:
   uri.prefix: /         # URI prefix, default is /
 
 application:
-  static.port: 8080       # HTTP port
+  http.port: 8080       # HTTP port
 ```
 
 ## Usage

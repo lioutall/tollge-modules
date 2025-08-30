@@ -23,7 +23,8 @@ public class HttpVerticle extends AbstractVerticle {
     @Override
     @SuppressWarnings("unchecked")
     public void start() {
-        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+      int port = Properties.getInteger("application", "http.port");
+      io.vertx.ext.web.Router router = MyRouter.getOrCreate(vertx, port);
 
         // 过滤器初始化
         Map<String, Object> filters = Properties.getGroup("filters.http");
@@ -71,10 +72,6 @@ public class HttpVerticle extends AbstractVerticle {
             }
 
         }
-
-        int port = Properties.getInteger("application", "http.port");
-        log.info("http服务监听端口:{}", port);
-        vertx.createHttpServer().requestHandler(router).listen(port);
     }
 
 }

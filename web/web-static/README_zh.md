@@ -16,7 +16,7 @@ web.static:
   uri.prefix: /         # URI前缀，默认为/
 
 application:
-  static.port: 8080       # HTTP端口
+  http.port: 8080       # HTTP端口
 ```
 
 ## 使用
