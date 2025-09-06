@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.charset.StandardCharsets;
 
 @NoArgsConstructor
-@Http("/wechatPay")
+@Http("/api/wechatPay")
 @Slf4j
 public class WechatPayRouter extends AbstractRouter {
 

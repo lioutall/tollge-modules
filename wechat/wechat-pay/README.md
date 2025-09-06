@@ -1,4 +1,4 @@
-# wechat-gzh
+# wechat-pay
 
 #### 项目介绍
 tollge项目的模块
