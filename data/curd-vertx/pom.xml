@@ -40,16 +40,6 @@
       <version>0.1.0</version>
     </dependency>
 
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-jdbc-client</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>com.mchange</groupId>
-          <artifactId>c3p0</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
 
     <dependency>
       <groupId>junit</groupId>
@@ -64,20 +54,9 @@
       <scope>test</scope>
     </dependency>
 
-<!--    驱动-->
     <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>42.2.1</version>
-      <scope>test</scope>
-    </dependency>
-
-<!--    连接池-->
-    <dependency>
-      <groupId>com.zaxxer</groupId>
-      <artifactId>HikariCP</artifactId>
-      <version>3.2.0</version>
-      <scope>test</scope>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-mysql-client</artifactId>
     </dependency>
 
 

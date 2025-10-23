@@ -1,29 +1,38 @@
 package com.tollge.modules.curd.vertx;
 
 import com.google.common.base.CaseFormat;
-import com.tollge.common.SqlAndParams;
-import com.tollge.common.TollgeException;
+import com.google.common.collect.Lists;
+import com.tollge.common.*;
 import com.tollge.common.util.Const;
 import com.tollge.common.util.Properties;
 import com.tollge.common.verticle.AbstractDao;
 import com.tollge.sql.SqlEngineException;
 import com.tollge.sql.SqlSession;
 import com.tollge.sql.SqlTemplate;
+import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.jdbc.JDBCClient;
-import io.vertx.ext.sql.ResultSet;
-import io.vertx.ext.sql.SQLConnection;
-import io.vertx.ext.sql.UpdateResult;
+import io.vertx.mysqlclient.MySQLBuilder;
+import io.vertx.mysqlclient.MySQLConnectOptions;
+import io.vertx.sqlclient.*;
+import io.vertx.sqlclient.impl.ArrayTuple;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.tollge.common.simple.Handle.fromHandler;
+import static com.tollge.common.util.Const.RETURN_CLASS_TYPE;
 
 /**
  * 标准数据库调用Verticle
@@ -32,340 +41,343 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 public class DaoVerticle extends AbstractDao {
-    private JDBCClient jdbcClient;
+    private Pool jdbcClient;
 
     @Override
     protected void init() {
-        jdbcClient = JDBCClient.createShared(vertx, getDbConfig());
+        JsonObject dbConfig = getDbConfig();
+        MySQLConnectOptions connectOptions = new MySQLConnectOptions()
+                .setPort(dbConfig.getInteger("port"))
+                .setHost(dbConfig.getString("host"))
+                .setDatabase(dbConfig.getString("database"))
+                .setUser(dbConfig.getString("user"))
+                .setPassword(dbConfig.getString("password"));
+
+        // Pool options
+        PoolOptions poolOptions = new PoolOptions()
+                .setMaxSize(dbConfig.getInteger("maximumPoolSize"));
+
+        // Create the pooled client
+        jdbcClient = Pool.pool(vertx, connectOptions, poolOptions);
+
+    }
+
+    public Future<Long> count(SqlAndParams sqlAndParams) {
+        return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
+        ).compose(conn -> {
+            SqlSession sqlSession = getSqlSession(sqlAndParams);
+            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlSession.getSql())
+                            .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
+                    .compose(res -> {
+                        RowIterator<Row> ite = res.iterator();
+                        Row r = ite.next();
+                        return Future.succeededFuture(r.getLong(0));
+                    }).onComplete(o -> conn.close());
+        });
     }
 
     @Override
     protected void count(Message<JsonObject> msg) {
-        final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
+        SqlAndParams sqlAndParams = fetchSqlAndParams(msg.body());
+        count(sqlAndParams)
+                .onSuccess(msg::reply)
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
+    }
 
-        jdbcClient.getConnection(connection -> {
-            if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
-                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                if (sqlSession == null) {
-                    return;
-                }
-                conn.queryWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
-                    if (res.succeeded()) {
-                        try {
-                            Long result = res.result().getResults().get(0).getLong(0);
-                            msg.reply(result);
-                        } catch (Exception e) {
-                            log.error("count.buildResult failed", e);
-                            msg.fail(501, e.getMessage());
-                        } finally {
-                            conn.close();
-                        }
-                    } else {
-                        log.error("count.query failed", res.cause());
-                        msg.fail(501, res.cause().toString());
-                        conn.close();
-                    }
-                });
-            } else {
-                log.error("count.getConnection failed", connection.cause());
-                msg.fail(501, connection.cause().toString());
-            }
-        });
+    private SqlSession getSqlSession(SqlAndParams sqlAndParams) {
+        if (sqlAndParams.getParams() == null) {
+            sqlAndParams.setParams(new TollgeMap<>());
+        }
+        return getRealSql(sqlAndParams.getSqlKey(), sqlAndParams.getParams());
     }
 
     private SqlSession getSqlSession(Message<?> msg, SqlAndParams sqlAndParams) {
         try {
-            Map<String, Object> params = sqlAndParams.getParams();
-            if(params == null && sqlAndParams.getBatchParams()!= null &&!sqlAndParams.getBatchParams().isEmpty()) {
-                params = sqlAndParams.getBatchParams().getFirst();
-            }
-            return getRealSql(sqlAndParams.getSqlKey(), params);
+            return getRealSql(sqlAndParams.getSqlKey(), sqlAndParams.getParams());
         } catch (Exception e) {
-            log.error(GET_REAL_SQL_FAILED, sqlAndParams.getSqlKey(), e);
+            log.error(GET_REAL_SQL_FAILED + sqlAndParams.getSqlKey(), e);
             msg.fail(501, e.toString());
             return null;
         }
+    }
+
+    public <T> Future<Page<T>> page(SqlAndParams sqlAndParams, Class<T> cls) {
+        if (sqlAndParams.getLimit() == 0) {
+            throw new SqlEngineException("limit should not be 0");
+        }
+
+        return Future.all(Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))),
+                        Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))))
+                .compose(connRes -> {
+                    SqlConnection o1 = connRes.resultAt(0);
+                    SqlConnection o2 = connRes.resultAt(1);
+
+                    SqlSession sqlSession = getSqlSession(sqlAndParams);
+
+                    return Future.all(
+                            Future.<RowSet<Row>>future(reply -> o1.preparedQuery("select count(1) from (".concat(sqlSession.getSql()).concat(") tab"))
+                                    .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
+                            ,
+                            Future.<RowSet<Row>>future(reply -> o2.preparedQuery(sqlSession.getSql()
+                                            .concat(" limit $" + (sqlSession.getParams().size() + 1) + " offset $" + (sqlSession.getParams().size() + 2)))
+                                    .execute(jsonArray2Tuple(sqlSession.getParams(), sqlAndParams.getLimit(), sqlAndParams.getOffset()), fromHandler(reply)))
+                            ,
+                            Future.succeededFuture(o1)
+                            ,
+                            Future.succeededFuture(o2)
+                    );
+                }).compose(res -> {
+                    SqlConnection o3 = res.resultAt(2);
+                    SqlConnection o4 = res.resultAt(3);
+                    o3.close();
+                    o4.close();
+                    RowSet<Row> o1 = res.resultAt(0);
+                    RowSet<Row> o2 = res.resultAt(1);
+
+                    RowIterator<Row> ite = o1.iterator();
+                    Row r = ite.next();
+                    Long count = r.getLong(0);
+
+                    Page<T> rPage = new Page<>(sqlAndParams.getOffset() / sqlAndParams.getLimit() + 1, sqlAndParams.getLimit());
+                    rPage.setTotal(count);
+
+                    JsonArray rows = under2Camel(o2);
+
+                    for (int i = 0; i < rows.size(); i++) {
+                        rPage.getResult().add(rows.getJsonObject(i).mapTo(cls));
+                    }
+
+                    return Future.succeededFuture(rPage);
+                });
     }
 
     @Override
     protected void page(Message<JsonObject> msg) {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
 
-        if (sqlAndParams.getLimit() == 0) {
-            msg.fail(500, "limit should not be 0.");
-            return;
-        }
+        Class<?> cCls = getClassFromMsg(msg);
 
-        jdbcClient.getConnection(connection -> {
-            if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
-                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                if (sqlSession == null) {
-                    return;
-                }
-                conn.queryWithParams("select count(1) from (".concat(sqlSession.getSql()).concat(") tab"), new JsonArray(sqlSession.getParams()), getCount -> {
-                    if (getCount.succeeded()) {
-                        // 返回结果
-                        JsonObject result = new JsonObject();
-                        // 获得数据总行数
-                        Long count = getCount.result().getResults().get(0).getLong(0);
+        page(fetchSqlAndParams(msg.body()), cCls)
+                .onSuccess(msg::reply)
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
+    }
 
-                        if(count == 0) {
-                            result.put(Const.TOLLGE_PAGE_COUNT, count);
-                            result.put(Const.TOLLGE_PAGE_DATA, new JsonArray());
-                            msg.reply(result);
-                            conn.close();
-                            return;
-                        }
-
-                        // 执行获得数据结果
-                        conn.queryWithParams(sqlSession.getSql().concat(" limit " + sqlAndParams.getLimit() + " offset " + sqlAndParams.getOffset()), new JsonArray(sqlSession.getParams()), getData -> {
-                            if (getData.succeeded()) {
-                                ResultSet rs = under2Camel(getData);
-                                List<JsonObject> rows = rs.getRows();
-                                result.put(Const.TOLLGE_PAGE_COUNT, count);
-                                result.put(Const.TOLLGE_PAGE_DATA, new JsonArray(rows));
-                                msg.reply(result);
-                                conn.close();
-                            } else {
-                                log.error("count.getData failed", getData.cause());
-                                msg.fail(501, getData.cause().toString());
-                                conn.close();
-                            }
-                        });
-                    } else {
-                        log.error("count.getCount failed", getCount.cause());
-                        msg.fail(501, getCount.cause().toString());
-                        conn.close();
-                    }
-                });
+    private static Class<?> getClassFromMsg(Message<?> msg) {
+        String headerCls = msg.headers().get(RETURN_CLASS_TYPE);
+        Class<?> cCls = null;
+        try {
+            if (!StringUtil.isNullOrEmpty(headerCls)) {
+                cCls = Class.forName(headerCls);
             } else {
-                log.error("page.getConnection failed", connection.cause());
-                msg.fail(501, connection.cause().toString());
+                cCls = JsonObject.class;
             }
+        } catch (ClassNotFoundException e) {
+            msg.fail(501, RETURN_CLASS_TYPE + " is not defined, value=" + msg.headers().get(RETURN_CLASS_TYPE));
+        }
+        return cCls;
+    }
+
+    public <T> Future<List<T>> list(SqlAndParams sqlAndParams, Class<T> cls) {
+        return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
+        ).compose(conn -> {
+            SqlSession sqlSession = getSqlSession(sqlAndParams);
+            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlSession.getSql())
+                            .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
+                    .compose(res -> {
+                        return Future.succeededFuture(under2Camel(res, cls));
+                    }).onComplete(o -> conn.close());
         });
     }
 
     @Override
     protected void list(Message<JsonObject> msg) {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
-        jdbcClient.getConnection(connection -> {
-            if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
-                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                if (sqlSession == null) {
-                    return;
-                }
-                conn.queryWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
-                    if (res.succeeded()) {
-                        ResultSet rs = under2Camel(res);
-                        List<JsonObject> rows = rs.getRows();
-                        msg.reply(new JsonArray(rows));
-                        conn.close();
-                    } else {
-                        log.error("list.query failed", res.cause());
-                        msg.fail(501, res.cause().toString());
-                        conn.close();
-                    }
-                });
-            } else {
-                log.error("list.getConnection failed", connection.cause());
-                msg.fail(501, connection.cause().toString());
-            }
+        Class<?> cCls = getClassFromMsg(msg);
+
+        list(sqlAndParams, cCls)
+                .onSuccess(msg::reply)
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
+    }
+
+    public <T> Future<T> one(SqlAndParams sqlAndParams, Class<T> cls) {
+        return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
+        ).compose(conn -> {
+            SqlSession sqlSession = getSqlSession(sqlAndParams);
+            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlSession.getSql())
+                            .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
+                    .compose(res -> {
+                        List<T> ts = under2Camel(res, cls);
+                        return Future.succeededFuture(ts.isEmpty() ? null : ts.getFirst());
+                    }).onComplete(o -> conn.close());
         });
     }
 
     @Override
     protected void one(Message<JsonObject> msg) {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
-        jdbcClient.getConnection(connection -> {
-            if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
-                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                if (sqlSession == null) {
-                    return;
-                }
-                conn.queryWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
-                    if (res.succeeded()) {
-                        JsonObject result = null;
-                        ResultSet rs = under2Camel(res);
-                        List<JsonObject> rows = rs.getRows();
-                        if (!rows.isEmpty()) {
-                            result = rows.get(0);
+        Class<?> cCls = getClassFromMsg(msg);
+
+        one(sqlAndParams, cCls)
+                .onSuccess(msg::reply)
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
+    }
+
+    private static String errorMsg(String key, Throwable e) {
+        log.error("DaoVerticle error", e);
+        return "[" + key + "]" + e.getMessage();
+    }
+
+    public <T> Future<OperationResult<T>> operate(SqlAndParams sqlAndParams, Class<T> cls) {
+        return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
+        ).compose(conn -> {
+            SqlSession sqlSession = getSqlSession(sqlAndParams);
+            return Future.<RowSet<Row>>future(reply -> conn.preparedQuery(sqlSession.getSql())
+                            .execute(jsonArray2Tuple(sqlSession.getParams()), fromHandler(reply)))
+                    .compose(res -> {
+                        OperationResult<T> result = new OperationResult<>();
+                        result.setCountRow(res.rowCount());
+                        if (res.columnsNames() != null && !res.columnsNames().isEmpty()) {
+
+                            for (Row r : res) {
+                                JsonObject jo = new JsonObject();
+                                for (int i = 0; i < res.columnsNames().size(); i++) {
+                                    jo.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, res.columnsNames().get(i)), r.getValue(i));
+                                }
+
+                                result.add(jo.mapTo(cls));
+                            }
                         }
-                        msg.reply(result);
-                        conn.close();
-                    } else {
-                        log.error("one.query failed", res.cause());
-                        conn.close();
-                        msg.fail(501, res.cause().toString());
-                    }
-                });
-            } else {
-                log.error("one.getConnection failed", connection.cause());
-                msg.fail(501, connection.cause().toString());
-            }
+                        return Future.succeededFuture(result);
+                    }).onComplete(o -> conn.close());
         });
     }
 
     @Override
     protected void operate(Message<JsonObject> msg) {
         final SqlAndParams sqlAndParams = fetchSqlAndParams(msg);
-        jdbcClient.getConnection(connection -> {
-            if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
-                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                if (sqlSession == null) {
-                    return;
-                }
-                conn.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), res -> {
-                    if (res.succeeded()) {
-                        if (res.result().getKeys() != null && !res.result().getKeys().isEmpty()) {
-                            msg.reply(res.result().getKeys());
-                        } else {
-                            msg.reply(res.result().getUpdated());
-                        }
-                        conn.close();
-                    } else {
-                        log.error("operate.query failed", res.cause());
-                        conn.close();
-                        msg.fail(501, res.cause().toString());
-                    }
-                });
-            } else {
-                log.error("operate.getConnection failed", connection.cause());
-                msg.fail(501, connection.cause().toString());
-            }
+        Class<?> cCls = getClassFromMsg(msg);
+
+        operate(sqlAndParams, cCls)
+                .onSuccess(msg::reply)
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
+    }
+
+    public <T> Future<List<T>> batch(SqlAndParams sqlAndParams, Class<T> cCls) {
+
+        List<Tuple> collect = Lists.newArrayList();
+        TollgeMap<String, Object> first = sqlAndParams.getBatchParams().getFirst();
+        first.put("sql_engine_mode", "$");
+        SqlSession sqlSession = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), first);
+        String sqlWithNum = sqlSession.getSql();
+        collect.add(jsonArray2Tuple(sqlSession.getParams()));
+        for (int i = 1; i < sqlAndParams.getBatchParams().size(); i++) {
+            SqlSession sqlSessionTmp = SqlTemplate.generateSQL(sqlAndParams.getSqlKey(), sqlAndParams.getBatchParams().get(i));
+            collect.add(jsonArray2Tuple(sqlSessionTmp.getParams()));
+        }
+
+        return Future.<SqlConnection>future(reply -> jdbcClient.getConnection(fromHandler(reply))
+        ).compose(conn -> {
+            return conn.preparedQuery(sqlWithNum).executeBatch(collect)
+                    .compose(res -> {
+                        return Future.succeededFuture(under2Camel(res, cCls));
+                    }).onComplete(o -> conn.close());
         });
+    }
+
+    private String w2n(String sql, int count) {
+        int i = 1;
+        int j = 0;
+        char[] sqlN = new char[sql.length() + count];
+        for (char c : sql.toCharArray()) {
+            if (c == '?') {
+                sqlN[j++] = '$';
+                sqlN[j++] = (char) ('0' + i++);
+            } else {
+                sqlN[j++] = c;
+            }
+        }
+        return new String(sqlN);
     }
 
     @Override
     protected void batch(Message<SqlAndParams> msg) {
-        final SqlAndParams sqlAndParams = fetchSqlAndParamsBody(msg);
+        final SqlAndParams sqlAndParams = msg.body();
+        if (sqlAndParams == null) {
+            msg.fail(501, "batch 为空, 请检查");
+            return;
+        }
+        Class<?> cCls = getClassFromMsg(msg);
 
-        jdbcClient.getConnection(connection -> {
-            if (connection.succeeded()) {
-                SQLConnection conn = connection.result();
-
-                SqlSession sqlSession = getSqlSession(msg, sqlAndParams);
-                if (sqlSession == null) {
-                    return;
-                }
-
-                List<JsonArray> collect = sqlAndParams.getBatchParams().stream().map(a -> {
-                                            List<Object> params = SqlTemplate.generateSQL(sqlSession.getSql(), a).getParams();
-                                            return new JsonArray(params);
-                                        }).collect(Collectors.toList());
-                conn.batchWithParams(sqlSession.getSql(), collect, res -> {
-                    if (res.succeeded()) {
-                        int result = res.result().size();
-                        msg.reply(result);
-                        conn.close();
-                    } else {
-                        log.error("batch.batch[{}] failed", sqlAndParams, connection.cause());
-                        conn.close();
-                        msg.fail(501, res.cause().toString());
-                    }
-                });
-            } else {
-                log.error("batch.getConnection failed", connection.cause());
-                msg.fail(501, connection.cause().toString());
-            }
-        });
+        batch(sqlAndParams, cCls)
+                .onSuccess(msg::reply)
+                .onFailure(e -> msg.fail(501, errorMsg(sqlAndParams.getSqlKey(), e)));
     }
 
     @Override
-    protected void transaction(Message<JsonArray> msg) {
+    public void transaction(Message<JsonArray> msg) {
         // 获取操作列表
         final List<SqlAndParams> sqlAndParamsList = fetchSqlAndParamsList(msg);
 
-        jdbcClient.getConnection(connR -> {
-            SQLConnection conn = connR.result();
-            if(connR.succeeded()) {
-                // 是否忽略执行结果
-                String ignore = msg.headers().get(Const.IGNORE);
+        // 是否忽略执行结果
+        String ignore = msg.headers().get(Const.IGNORE);
 
-                // 设置成手动提交
-                conn.setAutoCommit(false, r -> {
-                    if(r.succeeded()) {
-                        Promise<UpdateResult> promise = Promise.promise();
-                        Future<UpdateResult> deals = promise.future();
+        // 获取连接
+        jdbcClient.getConnection(connection -> {
+            if (connection.succeeded()) {
 
-                        for (SqlAndParams sqlParam : sqlAndParamsList) {
-                            SqlSession sqlSession = getRealSql(sqlParam.getSqlKey(), sqlParam.getParams());
+                // Transaction must use a connection
+                SqlConnection conn = connection.result();
 
-                            deals = deals.compose(deal -> Future.<UpdateResult>future(f->{
-                                conn.updateWithParams(sqlSession.getSql(), new JsonArray(sqlSession.getParams()), f);
-                            }).onComplete(a -> {
-                                if (a.succeeded()) {
-                                    if ("0".equals(ignore)){
-                                        int result = a.result().getUpdated();
-                                        if(result == 0) {
+                // Begin the transaction
+                conn.begin().compose(tx -> {
+
+                            Future<RowSet<Row>> updates = Future.succeededFuture();
+
+                            for (SqlAndParams sqlParam : sqlAndParamsList) {
+                                final String sql = getRealSqlAndParams(sqlParam.getSqlKey(), sqlParam.getParams());
+                                updates = updates.compose(a -> conn.query(sql).execute()
+                                ).compose(a -> {
+                                    log.debug("执行key[{}] sql[{}]完成 返回行数[{}]", sqlParam.getSqlKey(), sql, a.rowCount());
+                                    if ("0".equals(ignore)) {
+                                        int result = a.rowCount();
+                                        if (result == 0) {
                                             throw new TollgeException("no update: " + sqlParam.getSqlKey());
                                         }
                                     }
-                                } else {
-                                    throw new TollgeException("transaction update error: " + sqlParam.getSqlKey());
-                                }
-                            }));
-                        }
-
-                        deals.onComplete(res -> {
-                            if(res.succeeded()) {
-                                conn.commit(commitR -> {
-                                    if(commitR.succeeded()) {
-                                        setAutoCommitAndClose(conn);
-                                        msg.reply(sqlAndParamsList.size());
-                                    } else {
-                                        log.error("transaction.commit error", commitR.cause());
-                                        rollback(msg, conn);
-                                        msg.fail(501, commitR.cause().toString());
-                                    }
+                                    return Future.succeededFuture();
                                 });
-                            } else {
-                                log.error("transaction error", res.cause());
-                                rollback(msg, conn);
-                                msg.fail(501, res.cause().toString());
                             }
+
+                            return updates.compose(res -> {
+                                        // Commit the transaction
+                                        tx.commit(ar -> {
+                                            if (ar.succeeded()) {
+                                                msg.reply(sqlAndParamsList.size());
+                                            } else {
+                                                tx.rollback();
+                                                msg.fail(501, ar.cause().getMessage());
+                                            }
+
+                                            // Return the connection to the pool
+                                            conn.close();
+                                        });
+                                        return Future.succeededFuture();
+                                    }
+                            );
+                        })
+                        // Return the connection to the pool
+                        .eventually(() -> conn.close())
+                        .onSuccess(v -> log.info("Transaction succeeded"))
+                        .onFailure(err -> {
+                            log.error("Transaction failed: ", err);
+                            msg.fail(501, err.getMessage());
                         });
-
-                    } else {
-                        log.error("transaction error", r.cause());
-                        setAutoCommitAndClose(conn);
-                        msg.fail(501, r.cause().toString());
-                    }
-                });
-
             } else {
-                log.error("transaction.connect error", connR.cause());
-                if(conn != null) {
-                    conn.close();
-                }
-                msg.fail(501, connR.cause().toString());
+                log.error("transaction.getConnection failed", connection.cause());
+                msg.fail(501, connection.cause().toString());
             }
         });
-    }
 
-    private void rollback(Message<JsonArray> msg, SQLConnection conn) {
-        conn.rollback(rollRes -> {
-            if (rollRes.succeeded()) {
-                setAutoCommitAndClose(conn);
-            } else {
-                setAutoCommitAndClose(conn);
-                log.error("rollback error:", rollRes.cause());
-                msg.fail(501, rollRes.cause().toString());
-            }
-        });
-    }
-
-    private void setAutoCommitAndClose(SQLConnection conn) {
-        conn.setAutoCommit(true, auto -> {
-            if (!auto.succeeded()) {
-                log.error("can not set autocommit", auto.cause());
-            }
-            conn.close();
-        });
     }
 
     @Override
@@ -374,11 +386,63 @@ public class DaoVerticle extends AbstractDao {
         return new JsonObject(configs);
     }
 
-    protected ResultSet under2Camel(AsyncResult<ResultSet> getData) {
-        ResultSet rs = getData.result();
-        rs.setColumnNames(rs.getColumnNames().stream().map(a ->
-                CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, a)).collect(Collectors.toList()));
-        return rs;
+    protected JsonArray under2Camel(RowSet<Row> rs) {
+        JsonArray array = new JsonArray();
+        List<String> columns = rs.columnsNames();
+
+        for (Row r : rs) {
+            JsonObject j = new JsonObject();
+            for (String cn : columns) {
+                j.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, cn), r.getValue(cn));
+            }
+            array.add(j);
+        }
+        return array;
+    }
+
+    protected JsonArray under2Camel(AsyncResult<RowSet<Row>> getData) {
+        RowSet<Row> rs = getData.result();
+        return under2Camel(rs);
+    }
+
+    protected <T> List<T> under2Camel(RowSet<Row> rs, Class<T> cls) {
+        List<T> list = Lists.newArrayList();
+        List<String> columns = rs.columnsNames();
+
+        for (RowSet<Row> rows = rs; rows != null; rows = rows.next()) {
+            for (Row r : rows) {
+                JsonObject j = new JsonObject();
+                for (String cn : columns) {
+                    j.put(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, cn), safeObj(r.getValue(cn)));
+                }
+                if (cls == JsonObject.class) {
+                    list.add((T) j);
+                } else {
+                    list.add(j.mapTo(cls));
+                }
+            }
+        }
+
+        return list;
+    }
+
+    /**
+     * vertx 的jsonObject message codec不支持LocalDateTime
+     */
+    private static Object safeObj(Object o) {
+        String jsonTimeFormat = Properties.getString("application", "jsonTime.format", "yyyy-MM-dd HH:mm:ss");
+        if (o instanceof LocalDateTime) {
+            return ((LocalDateTime) o).format(DateTimeFormatter.ofPattern(jsonTimeFormat));
+        } else if (o instanceof LocalDate) {
+            String jsonDateFormat = Properties.getString("application", "jsonDate.format", "yyyy-MM-dd");
+            return ((LocalDate) o).format(DateTimeFormatter.ofPattern(jsonDateFormat));
+        }
+        return o;
+    }
+
+    protected <T> List<T> under2Camel(AsyncResult<RowSet<Row>> getData, Class<T> cls) {
+        RowSet<Row> rs = getData.result();
+        return under2Camel(rs, cls);
     }
 
     protected List<SqlAndParams> fetchSqlAndParamsList(Message<JsonArray> msg) {
@@ -394,6 +458,14 @@ public class DaoVerticle extends AbstractDao {
         }).collect(Collectors.toList());
     }
 
+    protected SqlAndParams fetchSqlAndParams(JsonObject json) {
+        SqlAndParams sqlAndParams = json != null ? json.mapTo(SqlAndParams.class) : null;
+        if (sqlAndParams == null) {
+            throw new SqlEngineException("sqlAndParams is null");
+        }
+        return sqlAndParams;
+    }
+
     protected SqlAndParams fetchSqlAndParams(Message<JsonObject> msg) {
         SqlAndParams sqlAndParams = msg.body() != null ? msg.body().mapTo(SqlAndParams.class) : null;
         if (sqlAndParams == null) {
@@ -402,21 +474,81 @@ public class DaoVerticle extends AbstractDao {
         return sqlAndParams;
     }
 
-    protected SqlAndParams fetchSqlAndParamsBody(Message<SqlAndParams> msg) {
-        SqlAndParams sqlAndParams = msg.body();
-        if (sqlAndParams == null) {
-            throw new SqlEngineException("sqlAndParams is null");
-        }
-        return sqlAndParams;
-    }
-
     protected SqlSession getRealSql(String sqlKey, Map<String, Object> params) {
         try {
-          params.put("sql_engine_mode", "$");
+            params.put("sql_engine_mode", "$");
             return SqlTemplate.generateSQL(sqlKey, params);
         } catch (RuntimeException e) {
             log.error("获取sql[{}]异常", sqlKey, e);
             throw e;
         }
     }
+
+    protected String getRealSqlAndParams(String sqlKey, Map<String, Object> params) {
+        try {
+            params.put("sql_engine_mode", "$");
+            SqlSession sqlSession = SqlTemplate.generateSQL(sqlKey, params);
+            return replaceQuestionMarks(sqlSession.getSql(), sqlSession.getParams());
+        } catch (RuntimeException e) {
+            log.error("获取sql[{}]异常", sqlKey, e);
+            throw e;
+        }
+    }
+
+    private static String replaceQuestionMarks(String input, List<Object> params) {
+        StringBuilder result = new StringBuilder();
+        int counter = 0; // 起始数字为0
+
+        char lastChar = ' ';
+
+        for (int i = 0; i < input.length(); i++) {
+            char currentChar = input.charAt(i);
+            if (lastChar == '$' && currentChar >= '0' && currentChar <= '9') {
+                // 去掉上一个字符
+                result.deleteCharAt(result.length() - 1);
+                Object o = params.get(counter);
+                if (o instanceof String) {
+                    result.append("'").append(o).append("'"); // 字符串用单引号包裹
+                } else if (o instanceof Number) {
+                    result.append(o); // 数字直接保留
+                } else if (o == null) {
+                    result.append("null"); // null用null表示
+                } else if (o instanceof Boolean) {
+                    result.append(o); // boolean直接保留
+                } else if (o instanceof Map) {
+                    result.append("'").append(Json.encode(o)).append("'");
+                } else if (o instanceof List) {
+                    result.append("'").append(Json.encode(o)).append("'");
+                } else {
+                    throw new SqlEngineException("不支持的参数类型:" + o.getClass());
+                }
+                counter++;            // 数字递增
+            } else {
+                result.append(currentChar); // 非问号直接保留
+            }
+            lastChar = currentChar;
+        }
+
+        return result.toString();
+    }
+
+    private Tuple jsonArray2Tuple(List<Object> list) {
+        Tuple t = new ArrayTuple(list.size());
+        for (Object elt : list) {
+            if (elt instanceof List) {
+                t.addValue(new JsonArray((List) elt));
+            } else if (elt instanceof Map) {
+                t.addValue(new JsonObject((Map) elt));
+            } else {
+                t.addValue(elt);
+            }
+        }
+        return t;
+    }
+
+    private Tuple jsonArray2Tuple(List<Object> list, Integer... ints) {
+        list.addAll(Arrays.asList(ints));
+        return jsonArray2Tuple(list);
+    }
+
 }

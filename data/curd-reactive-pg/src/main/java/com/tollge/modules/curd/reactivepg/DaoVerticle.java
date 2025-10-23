@@ -208,6 +208,7 @@ public class DaoVerticle extends AbstractDao {
   }
 
   private static String errorMsg(String key, Throwable e) {
+    log.error("DaoVerticle error", e);
     return "[" + key + "]" + e.getMessage();
   }
 
@@ -414,11 +415,12 @@ public class DaoVerticle extends AbstractDao {
    * vertx 的jsonObject message codec不支持LocalDateTime
    */
   private static Object safeObj(Object o) {
-    String jsonFormat = Properties.getString("application", "json.format", "yyyy-MM-dd HH:mm:ss");
+    String jsonTimeFormat = Properties.getString("application", "jsonTime.format", "yyyy-MM-dd HH:mm:ss");
     if (o instanceof LocalDateTime) {
-      return ((LocalDateTime) o).format(DateTimeFormatter.ofPattern(jsonFormat));
+      return ((LocalDateTime) o).format(DateTimeFormatter.ofPattern(jsonTimeFormat));
     } else if (o instanceof LocalDate) {
-      return ((LocalDate) o).format(DateTimeFormatter.ofPattern(jsonFormat));
+      String jsonDateFormat = Properties.getString("application", "jsonDate.format", "yyyy-MM-dd");
+      return ((LocalDate) o).format(DateTimeFormatter.ofPattern(jsonDateFormat));
     }
     return o;
   }
